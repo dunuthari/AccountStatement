@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Statement Calculator</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#fff; --text:#1c2230; --muted:#6b7385; --line:#e3e6ec;
+          --debit:#c0392b; --credit:#1e8e5a; --accent:#2f5bea; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#14171e; --card:#1d212b; --text:#e8eaf0; --muted:#8c93a6; --line:#2d3342;
+            --debit:#ff7a6b; --credit:#4cc88a; --accent:#6b8cff; }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:15px/1.4 system-ui,sans-serif; }
+  main { max-width:1100px; margin:0 auto; padding:24px 16px 48px; }
+  h1 { font-size:22px; margin:0 0 4px; }
+  p.sub { color:var(--muted); margin:0 0 20px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px; margin-bottom:16px; }
+  #drop { border:2px dashed var(--line); text-align:center; padding:28px 12px; cursor:pointer; border-radius:10px; }
+  #drop.over { border-color:var(--accent); }
+  #drop input { display:none; }
+  .totals { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; }
+  .tot { padding:12px; border:1px solid var(--line); border-radius:8px; }
+  .tot small { color:var(--muted); display:block; }
+  .tot b { font-size:22px; font-variant-numeric:tabular-nums; }
+  .debit { color:var(--debit); } .credit { color:var(--credit); }
+  .tablewrap { overflow-x:auto; }
+  table { width:100%; border-collapse:collapse; }
+  th,td { padding:8px 10px; border-bottom:1px solid var(--line); text-align:left; }
+  th.num,td.num { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+  tr.off td:not(.act) { opacity:.4; text-decoration:line-through; }
+  button { font:inherit; cursor:pointer; border:1px solid var(--line); background:var(--card); color:var(--text);
+           border-radius:6px; padding:4px 10px; }
+  button:hover { border-color:var(--accent); }
+  .toolbar { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; align-items:center; }
+  #msg { color:var(--muted); margin-top:8px; }
+  .hidden { display:none; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Statement Calculator</h1>
+  <p class="sub">Upload a text-based bank statement PDF. It is processed in your browser only; nothing is uploaded.</p>
+
+  <label id="drop" class="card" style="display:block">
+    <input id="file" type="file" accept="application/pdf">
+    <strong>Click or drop your statement PDF here</strong>
+    <div id="msg"></div>
+  </label>
+
+  <section id="result" class="hidden">
+    <div class="card totals">
+      <div class="tot"><small>Total Debits</small><b class="debit" id="td">0.00</b></div>
+      <div class="tot"><small>Total Credits</small><b class="credit" id="tc">0.00</b></div>
+      <div class="tot"><small>Net (Credits − Debits)</small><b id="tn">0.00</b></div>
+      <div class="tot"><small>Rows counted / ignored</small><b id="cnt">0 / 0</b></div>
+    </div>
+    <div class="card">
+      <div class="toolbar">
+        <button id="enableAll">Enable all</button>
+        <button id="ignoreAll">Ignore all</button>
+      </div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Date</th><th>Ref. No</th><th>Particulars</th><th class="num">Debits</th><th class="num">Credits</th><th></th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script type="module">
+import * as pdfjsLib from "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.min.mjs";
+pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.worker.min.mjs";
+
+const $ = id => document.getElementById(id);
+const AMOUNT = /^-?[\d,]+\.\d{2}(?:\s?(?:Cr|Dr))?$/i;
+const DATE = /^\d{1,2}[\/\-. ](?:\d{1,2}|[A-Za-z]{3})[\/\-. ]\d{2,4}$/;
+let rows = [];
+
+const toNum = s => parseFloat(s.replace(/[^\d.\-]/g, "")) || 0;
+const fmt = n => n.toLocaleString(undefined, { minimumFractionDigits:2, maximumFractionDigits:2 });
+const esc = s => s.replace(/[&<>"]/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c]));
+
+// Group text items into visual lines (by y), sorted left to right.
+async function readLines(pdf) {
+  const out = [];
+  for (let p = 1; p <= pdf.numPages; p++) {
+    const items = (await (await pdf.getPage(p)).getTextContent()).items
+      .filter(i => i.str.trim())
+      .map(i => ({ s:i.str.trim(), x:i.transform[4], y:i.transform[5] }));
+    items.sort((a, b) => b.y - a.y || a.x - b.x);
+    let cur = null;
+    for (const it of items) {
+      if (cur && Math.abs(cur.y - it.y) < 3) cur.items.push(it);
+      else { cur = { y:it.y, items:[it] }; out.push(cur); }
+    }
+  }
+  out.forEach(l => l.items.sort((a, b) => a.x - b.x));
+  return out;
+}
+
+function findColumns(lines) {
+  for (const l of lines) {
+    const t = l.items.map(i => i.s.toLowerCase()).join(" ");
+    if (/debit|withdrawal/.test(t) && /credit|deposit/.test(t)) {
+      const cols = {};
+      for (const i of l.items) {
+        const s = i.s.toLowerCase();
+        if (/^(debit|withdrawal)/.test(s)) cols.debit = i.x;
+        else if (/^(credit|deposit)/.test(s)) cols.credit = i.x;
+        else if (/^balance/.test(s)) cols.balance = i.x;
+        else if (/^(ref|chq|cheque)/.test(s)) cols.ref = i.x;
+        else if (/^(particulars|description|narration)/.test(s)) cols.part = i.x;
+      }
+      if (cols.debit != null && cols.credit != null) return cols;
+    }
+  }
+  return null;
+}
+
+function parse(lines) {
+  const cols = findColumns(lines);
+  if (!cols) throw new Error("Could not find the Debits / Credits column headers.");
+  const result = [];
+  let prevBalance = null;
+  for (const l of lines) {
+    const first = l.items[0];
+    const isTxn = first && DATE.test(first.s);
+    if (!isTxn) {
+      // continuation line: append to previous particulars
+      const prev = result[result.length - 1];
+      if (prev && l.items.every(i => !AMOUNT.test(i.s)) && l.items[0].x > (cols.part ?? 0) - 15)
+        prev.particulars += " " + l.items.map(i => i.s).join(" ");
+      continue;
+    }
+    const row = { date:first.s, ref:"", particulars:"", debit:0, credit:0, on:true };
+    const amounts = [];
+    const mids = [cols.ref, cols.part].filter(v => v != null);
+    for (const i of l.items.slice(1)) {
+      if (AMOUNT.test(i.s)) amounts.push(i);
+      else if (cols.ref != null && cols.part != null && i.x < cols.part - 5) row.ref += (row.ref ? " " : "") + i.s;
+      else row.particulars += (row.particulars ? " " : "") + i.s;
+    }
+    // Map each amount to the nearest of the debit / credit / balance columns.
+    const targets = [["debit", cols.debit], ["credit", cols.credit]];
+    if (cols.balance != null) targets.push(["balance", cols.balance]);
+    for (const a of amounts) {
+      const nearest = targets.reduce((m, t) => Math.abs(t[1] - a.x) < Math.abs(m[1] - a.x) ? t : m);
+      if (nearest[0] === "debit") row.debit = toNum(a.s);
+      else if (nearest[0] === "credit") row.credit = toNum(a.s);
+      else prevBalance = toNum(a.s);
+    }
+    if (row.debit || row.credit) result.push(row);
+  }
+  return result;
+}
+
+function render() {
+  $("rows").innerHTML = rows.map((r, i) => `
+    <tr class="${r.on ? "" : "off"}">
+      <td>${esc(r.date)}</td><td>${esc(r.ref)}</td><td>${esc(r.particulars)}</td>
+      <td class="num debit">${r.debit ? fmt(r.debit) : ""}</td>
+      <td class="num credit">${r.credit ? fmt(r.credit) : ""}</td>
+      <td class="act"><button data-i="${i}">${r.on ? "Ignore" : "Enable"}</button></td>
+    </tr>`).join("");
+  const on = rows.filter(r => r.on);
+  const d = on.reduce((s, r) => s + r.debit, 0), c = on.reduce((s, r) => s + r.credit, 0);
+  $("td").textContent = fmt(d); $("tc").textContent = fmt(c); $("tn").textContent = fmt(c - d);
+  $("cnt").textContent = `${on.length} / ${rows.length - on.length}`;
+}
+
+async function handle(file) {
+  if (!file) return;
+  $("msg").textContent = "Reading " + file.name + "…";
+  try {
+    const pdf = await pdfjsLib.getDocument({ data:await file.arrayBuffer() }).promise;
+    rows = parse(await readLines(pdf));
+    if (!rows.length) throw new Error("No transactions found. The PDF may be scanned (image-only).");
+    $("msg").textContent = `${file.name}: ${rows.length} transactions found.`;
+    $("result").classList.remove("hidden");
+    render();
+  } catch (e) {
+    $("msg").textContent = "Error: " + e.message;
+    $("result").classList.add("hidden");
+  }
+}
+
+$("file").addEventListener("change", e => handle(e.target.files[0]));
+$("drop").addEventListener("dragover", e => { e.preventDefault(); $("drop").classList.add("over"); });
+$("drop").addEventListener("dragleave", () => $("drop").classList.remove("over"));
+$("drop").addEventListener("drop", e => { e.preventDefault(); $("drop").classList.remove("over"); handle(e.dataTransfer.files[0]); });
+$("rows").addEventListener("click", e => {
+  const b = e.target.closest("button[data-i]");
+  if (b) { rows[b.dataset.i].on = !rows[b.dataset.i].on; render(); }
+});
+$("enableAll").onclick = () => { rows.forEach(r => r.on = true); render(); };
+$("ignoreAll").onclick = () => { rows.forEach(r => r.on = false); render(); };
+</script>
+</body>
+</html>

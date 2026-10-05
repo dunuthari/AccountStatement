@@ -89,7 +89,7 @@
   .kpi-num { font-size:30px; font-weight:700; letter-spacing:-.03em; line-height:1.15; }
 
   /* chart card */
-  .chartcard { display:grid; grid-template-columns:minmax(0,1fr) 190px; gap:24px; }
+  .chartcard { display:grid; grid-template-columns:minmax(0,1fr); gap:24px; }
   .legend { display:flex; gap:14px; flex-wrap:wrap; font-size:12px; font-weight:600; }
   .legend span::before { content:""; display:inline-block; width:9px; height:9px; border-radius:2px; margin-right:6px; background:var(--c); }
   .chart { display:grid; grid-template-columns:44px minmax(0,1fr); margin-top:6px; }
@@ -115,11 +115,9 @@
   .tip div span:first-child { white-space:nowrap; }
   .tip div span::before { content:""; display:inline-block; width:7px; height:7px; border-radius:50%; margin-right:6px; background:var(--c); }
   .mchips { display:flex; flex-wrap:wrap; gap:8px; margin:2px 0 10px; }
-  .mchip { background:var(--soft); border-radius:12px; padding:6px 12px; font-size:12px; color:var(--muted); border:1px solid transparent; }
+  .mchip { font:inherit; cursor:pointer; text-align:left; background:var(--soft); border-radius:12px; padding:6px 12px; font-size:12px; color:var(--muted); border:1px solid transparent; }
   .mchip b { display:block; font-size:15px; color:var(--red); font-weight:700; }
   .mchip.cur { border-color:var(--ink); color:var(--ink); }
-  .kpis { display:flex; flex-direction:column; gap:22px; padding-top:6px; }
-  .kpis small { color:var(--muted); font-size:12px; display:block; margin-bottom:2px; }
   .delta { font-size:12px; color:var(--muted); }
   .delta.up { color:var(--green); } .delta.down { color:var(--red); }
 
@@ -224,9 +222,6 @@
     .drop { min-height:96px; padding:12px; } .dsk { display:none; } .mob { display:inline; }
     /* chart + totals */
     .chartcard { grid-template-columns:minmax(0,1fr); gap:14px; }
-    .kpis { order:-1; display:grid; grid-template-columns:1fr 1fr; gap:12px 16px; padding:0 0 14px; border-bottom:1px solid var(--line); }
-    .kpis > div:last-child { grid-column:1 / -1; }
-    .kpi-num { font-size:24px; }
     .chart { grid-template-columns:34px minmax(0,1fr); }
     .tip { width:176px; }
     .legend { font-size:11.5px; gap:10px; }
@@ -298,18 +293,13 @@
                 <span style="--c:var(--lime)">Regular</span><span style="--c:var(--yellow)">One-time</span><span style="--c:var(--orange)">KOKO</span>
               </div>
             </div>
+            <div class="muted" style="font-size:12px;margin-top:4px">Planned debits by month, rest of <span id="yr"></span></div>
             <div class="mchips" id="mDebits"></div>
-            <div class="muted" style="font-size:12px;margin-top:4px">Planned payments, rest of <span id="yr"></span></div>
             <div class="chart">
               <div class="yaxis" id="yaxis"></div>
               <div class="plot" id="plot"></div>
               <div class="xlabels" id="xlabels"></div>
             </div>
-          </div>
-          <div class="kpis">
-            <div><small>Total debits</small><div class="kpi-num num debit" id="td">0.00</div><div class="delta" id="dd">No statement yet</div></div>
-            <div><small>Total credits</small><div class="kpi-num num credit" id="tc">0.00</div><div class="delta" id="dc">&nbsp;</div></div>
-            <div><small>Net (credits − debits)</small><div class="kpi-num num" id="tn">0.00</div><div class="delta" id="dn">&nbsp;</div></div>
           </div>
         </div>
       </section>
@@ -490,21 +480,11 @@ function render() {
       <td class="act"><input class="sw" type="checkbox" data-i="${i}" ${r.on ? "checked" : ""} aria-label="Include this transaction in totals"></td>
     </tr>`).join("") : `<tr><td colspan="6" class="muted" style="padding:28px;text-align:center">${rows.length ? "No transactions match your search." : "No statement loaded yet."}</td></tr>`;
   const on = rows.filter(r => r.on);
-  const d = on.reduce((s, r) => s + r.debit, 0), c = on.reduce((s, r) => s + r.credit, 0);
-  $("td").textContent = fmt(d); $("tc").textContent = fmt(c); $("tn").textContent = fmt(c - d);
-  $("tn").className = "kpi-num num " + (c - d >= 0 ? "credit" : "debit");
   const now = new Date();
   const monthDebit = on.reduce((s, r) => { const d = parseStmtDate(r.date); return d && d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() ? s + r.debit : s; }, 0);
   $("planTotal").textContent = fmt(monthDebit);
   $("planSub").textContent = `Debits in ${MON[now.getMonth()]} ${now.getFullYear()}` + (rows.length ? "" : " · upload a statement");
-  const byMonth = {};
-  on.forEach(r => { const d = parseStmtDate(r.date); if (d && r.debit) { const k = d.getFullYear() * 12 + d.getMonth(); byMonth[k] = (byMonth[k] || 0) + r.debit; } });
-  const curK = now.getFullYear() * 12 + now.getMonth();
-  $("mDebits").innerHTML = Object.keys(byMonth).sort((a, b) => a - b).map(k => `<div class="mchip ${+k === curK ? "cur" : ""}">${MON[k % 12].slice(0, 3)} ${Math.floor(k / 12)}<b class="num">${fmt(byMonth[k])}</b></div>`).join("");
-  const nd = on.filter(r => r.debit).length, nc = on.filter(r => r.credit).length;
   if (rows.length) {
-    $("dd").textContent = `${nd} debits counted`; $("dc").textContent = `${nc} credits counted`;
-    $("dn").textContent = `${rows.length - on.length} ignored`;
     $("stmtSub").textContent = `${rows.length} transactions · ${on.length} counted, ${rows.length - on.length} ignored`;
   }
 }
@@ -650,6 +630,8 @@ function renderItems() {
   $("xlabels").style.gridTemplateColumns = `repeat(${MONTHS_LEFT},minmax(0,1fr))`;
   $("xlabels").innerHTML = months.map((mo, k) => `<span class="${k === selMonth ? "sel" : ""}">${MON[mo.m].slice(0, 3)}</span>`).join("");
 
+  $("mDebits").innerHTML = months.map((mo, k) => `<button type="button" class="mchip ${k === selMonth ? "cur" : ""}" data-m="${k}">${MON[mo.m].slice(0, 3)} ${mo.y}<b class="num">${fmt(mo.total)}</b></button>`).join("");
+
   // progress + overview
   const pct = total ? Math.round(paid / total * 100) : 0;
   $("limitFill").style.width = pct + "%"; $("paidAmt").textContent = fmt(paid); $("planAmt").textContent = fmt(total);
@@ -670,6 +652,7 @@ function renderItems() {
       <div class="r num"><b>${fmt(e.it.amount)}</b></div></div>`).join("") : `<div class="row muted">Nothing planned.</div>`}</div>`).join("");
 }
 
+$("mDebits").addEventListener("click", e => { const c = e.target.closest("[data-m]"); if (c) { selMonth = +c.dataset.m; renderItems(); } });
 $("plot").addEventListener("click", e => { const c = e.target.closest("[data-m]"); if (c) { selMonth = +c.dataset.m; renderItems(); } });
 $("plot").addEventListener("mouseover", e => { const c = e.target.closest("[data-m]"); if (c && +c.dataset.m !== selMonth) { selMonth = +c.dataset.m; renderItems(); } });
 $("plot").addEventListener("focusin", e => { const c = e.target.closest("[data-m]"); if (c && +c.dataset.m !== selMonth) { selMonth = +c.dataset.m; renderItems(); $("plot").querySelector(`[data-m="${selMonth}"]`).focus(); } });

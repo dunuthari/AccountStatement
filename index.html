@@ -312,7 +312,7 @@
       </div>
 
       <section class="card a-limit">
-        <div class="head"><div><h2>Payment progress</h2><small>Paid against everything planned</small></div></div>
+        <div class="head"><div><h2>Payment progress</h2><small id="pSub">Paid against this month's planned payments</small></div></div>
         <div class="bar"><i id="limitFill" style="width:0%"></i></div>
         <div class="barlabels"><span>Paid <b class="num" id="paidAmt">0.00</b></span><span>Planned <b class="num" id="planAmt">0.00</b></span></div>
       </section>
@@ -633,8 +633,13 @@ function renderItems() {
   $("mDebits").innerHTML = months.map((mo, k) => `<button type="button" class="mchip ${k === selMonth ? "cur" : ""}" data-m="${k}">${MON[mo.m].slice(0, 3)} ${mo.y}<b class="num">${fmt(mo.total)}</b></button>`).join("");
 
   // progress + overview
-  const pct = total ? Math.round(paid / total * 100) : 0;
-  $("limitFill").style.width = pct + "%"; $("paidAmt").textContent = fmt(paid); $("planAmt").textContent = fmt(total);
+  // progress covers the current month only
+  const cur = months[0].list.filter(e => !e.s.skip);
+  const curTotal = cur.reduce((s, e) => s + e.it.amount, 0);
+  const curPaid = cur.filter(e => e.s.paid).reduce((s, e) => s + e.it.amount, 0);
+  const pct = curTotal ? Math.round(curPaid / curTotal * 100) : 0;
+  $("limitFill").style.width = pct + "%"; $("paidAmt").textContent = fmt(curPaid); $("planAmt").textContent = fmt(curTotal);
+  $("pSub").textContent = `Paid against ${MON[months[0].m]} ${months[0].y} planned payments`;
   // next due
   const due = all.filter(e => !e.s.paid).sort((a, b) => a.o.date - b.o.date).slice(0, 4);
   $("nextDue").innerHTML = due.length ? due.map(e => `<div class="row"><div class="badge" style="--c:${COLOR[e.c]}">${esc(e.it.name.charAt(0).toUpperCase())}</div>

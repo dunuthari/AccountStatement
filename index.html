@@ -191,6 +191,9 @@
   th.r, td.r { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
   tr.off td:not(.act) { opacity:.38; text-decoration:line-through; }
   td.act { text-align:right; }
+  .stmttotals { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:16px; padding-top:16px; border-top:2px solid var(--line); }
+  .stmttotals small { display:block; color:var(--muted); font-size:12px; font-weight:600; }
+  .stmttotals b { font-size:26px; font-weight:800; letter-spacing:-.02em; }
   .debit { color:var(--red); } .credit { color:var(--green); }
 
   @media (max-width:1180px) {
@@ -362,6 +365,10 @@
             <tbody id="rows"></tbody>
           </table>
         </div>
+        <div class="stmttotals hidden" id="stmtTotals">
+          <div><small>Total debits</small><b class="num debit" id="sumD">0.00</b></div>
+          <div><small>Total credits</small><b class="num credit" id="sumC">0.00</b></div>
+        </div>
       </section>
 
       <section class="card upload a-upload" id="uploadCard">
@@ -484,6 +491,9 @@ function render() {
   const monthDebit = on.reduce((s, r) => { const d = parseStmtDate(r.date); return d && d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() ? s + r.debit : s; }, 0);
   $("planTotal").textContent = fmt(monthDebit);
   $("planSub").textContent = `Debits in ${MON[now.getMonth()]} ${now.getFullYear()}` + (rows.length ? "" : " · upload a statement");
+  $("stmtTotals").classList.toggle("hidden", !rows.length);
+  $("sumD").textContent = fmt(on.reduce((s, r) => s + r.debit, 0));
+  $("sumC").textContent = fmt(on.reduce((s, r) => s + r.credit, 0));
   if (rows.length) {
     $("stmtSub").textContent = `${rows.length} transactions · ${on.length} counted, ${rows.length - on.length} ignored`;
   }

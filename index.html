@@ -51,6 +51,8 @@
   .links { display:flex; gap:10px; margin-top:8px; font-size:13px; flex-wrap:wrap; }
   a { color:var(--accent); }
   .note { color:var(--muted); font-size:13px; margin:8px 0 0; }
+  .chk { flex-direction:row !important; align-items:center; gap:8px !important; }
+  .chk input { width:auto; }
   .month { margin-top:14px; }
   .month h3 { font-size:15px; margin:0 0 6px; display:flex; justify-content:space-between; gap:8px; flex-wrap:wrap; }
   tr.skip td:not(.act) { opacity:.4; text-decoration:line-through; }
@@ -91,11 +93,13 @@
   </section>
 
   <section class="card planner" id="monthlySec">
-    <h2>Monthly payments</h2>
-    <p class="note" style="margin-top:0">Add a bill once and it is planned in all 6 months, starting this month.</p>
+    <h2>Regular and one-time payments</h2>
+    <p class="note" style="margin-top:0">Turn on "Repeat every month" for bills like gym or wifi, and it is planned in every month of the year. Turn it off for a single payment in one month.</p>
     <form class="form" id="mForm">
       <label>Name<input id="mName" required placeholder="Gym"></label>
       <label>Amount<input id="mAmt" type="number" step="0.01" min="0" required placeholder="5000"></label>
+      <label class="chk"><span>Repeat every month (whole year)</span><input id="mRepeat" type="checkbox" checked></label>
+      <label id="lMonth" class="hidden">Month<input id="mMonth" type="month"></label>
       <label>Due day of month<input id="mDay" type="number" min="1" max="31" value="1" required></label>
       <label>Statement text (optional)<input id="mMatch" placeholder="GYM"></label>
       <button type="submit" id="mSave">Add</button>
@@ -119,7 +123,7 @@
   </section>
 
   <section class="card planner" id="planSec">
-    <h2>6-month plan</h2>
+    <h2>12-month plan</h2>
     <div class="totals" id="planTotals"></div>
     <div id="plan"></div>
     <p class="note">A payment shows Paid automatically when your uploaded statement has a debit of the same amount near its date. Use Mark paid to set it yourself, or Skip to leave a payment out of the totals. Reminders: use "Add to Google Calendar" on an item for an email or phone notification.</p>
@@ -280,7 +284,10 @@ function occurrences(it) {
     const [y, m, d] = it.start.split("-").map(Number);
     for (let k = 0; k < it.term; k++) out.push({ k, n:k + 1, date:addMonths(y, m - 1 + k, d) });
   } else {
-    for (let k = 0; k < 6; k++) out.push({ k, n:k + 1, date:addMonths(now.getFullYear(), now.getMonth() + k, it.day) });
+    if (it.repeat === false) {                      // one-time payment in a chosen month
+      const [y, m] = it.month.split("-").map(Number);
+      out.push({ k:0, n:1, date:addMonths(y, m - 1, it.day) });
+    } else for (let k = 0; k < 12; k++) out.push({ k, n:k + 1, date:addMonths(now.getFullYear(), now.getMonth() + k, it.day) });
   }
   return out;
 }
@@ -304,20 +311,23 @@ function calLink(it) {
   const all = occurrences(it);
   const o = all.find(o => day0(o.date) >= day0(new Date())) || all[0];
   const end = new Date(o.date.getTime() + 864e5);
-  const rule = it.type === "koko" ? `FREQ=MONTHLY;COUNT=${it.term}` : "FREQ=MONTHLY;COUNT=6";
+  const rule = it.type === "koko" ? `FREQ=MONTHLY;COUNT=${it.term}` : it.repeat === false ? "" : "FREQ=MONTHLY;COUNT=12";
   const p = new URLSearchParams({ action:"TEMPLATE", text:`Pay ${it.name} (${fmt(it.amount)})`,
-    dates:`${ymd(o.date)}/${ymd(end)}`, details:`${it.name}: ${fmt(it.amount)}`, recur:`RRULE:${rule}` });
+    dates:`${ymd(o.date)}/${ymd(end)}`, details:`${it.name}: ${fmt(it.amount)}` });
+  if (rule) p.set("recur", "RRULE:" + rule);
   return "https://calendar.google.com/calendar/render?" + p;
 }
 function itemList(type) {
   const list = items.map((it, i) => ({ it, i })).filter(x => x.it.type === type);
-  if (!list.length) return `<p class="note">${type === "koko" ? "No KOKO payments yet." : "No monthly payments yet."}</p>`;
+  if (!list.length) return `<p class="note">${type === "koko" ? "No KOKO payments yet." : "No regular or one-time payments yet."}</p>`;
   return list.map(({ it, i }) => {
     const st = occurrences(it).map(o => status(it, o)).filter(s => !s.skip);
     const paidN = st.filter(s => s.paid).length;
     const info = type === "koko"
       ? `${fmt(it.amount)} × ${it.term} months from ${fdate(new Date(it.start + "T00:00"))} · ${paidN} of ${it.term} paid · ${it.term - paidN} left`
-      : `${fmt(it.amount)} on day ${it.day} each month · next 6 months`;
+      : it.repeat === false
+        ? `${fmt(it.amount)} once, ${fdate(occurrences(it)[0].date)}`
+        : `${fmt(it.amount)} on day ${it.day} every month · whole year`;
     return `<div class="item"><header><strong>${esc(it.name)}</strong><span class="meta">${info}</span></header>
       <div class="links"><a href="${calLink(it)}" target="_blank" rel="noopener">Add to Google Calendar</a>
       <button data-edit="${i}">Edit</button> <button data-del="${i}">Remove</button></div></div>`;
@@ -328,7 +338,7 @@ function renderItems() {
   $("kItems").innerHTML = itemList("koko");
   // collect every planned payment and group by month
   const now = new Date(), months = [];
-  for (let k = 0; k < 6; k++) months.push({ y:now.getFullYear(), m:now.getMonth() + k, list:[] });
+  for (let k = 0; k < 12; k++) months.push({ y:now.getFullYear(), m:now.getMonth() + k, list:[] });
   months.forEach(mo => { const d = new Date(mo.y, mo.m, 1); mo.y = d.getFullYear(); mo.m = d.getMonth(); });
   items.forEach((it, i) => occurrences(it).forEach(o => {
     const mo = months.find(x => x.y === o.date.getFullYear() && x.m === o.date.getMonth());
@@ -353,18 +363,22 @@ function renderItems() {
       <div class="tablewrap"><table><tbody>${body}</tbody></table></div></div>`;
   }).join("");
   $("planTotals").innerHTML = `
-    <div class="tot"><small>Planned in 6 months</small><b class="debit">${fmt(total)}</b></div>
+    <div class="tot"><small>Planned in 12 months</small><b class="debit">${fmt(total)}</b></div>
     <div class="tot"><small>Still to pay</small><b>${fmt(remaining)}</b></div>
     <div class="tot"><small>Already paid</small><b class="credit">${fmt(total - remaining)}</b></div>`;
 }
 const todayStr = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; };
 $("kStart").value = todayStr();
+const thisMonth = () => todayStr().slice(0, 7);
+function syncRepeat() { $("lMonth").classList.toggle("hidden", $("mRepeat").checked); $("mMonth").required = !$("mRepeat").checked; }
+$("mMonth").min = thisMonth();
+$("mRepeat").onchange = syncRepeat;
 const editing = { monthly:null, koko:null };   // index of the item being edited
 function resetForm(type) {
   const p = type === "koko" ? "k" : "m";
   editing[type] = null;
   $(p + "Form").reset();
-  if (type === "koko") $("kStart").value = todayStr(); else $("mDay").value = 1;
+  if (type === "koko") $("kStart").value = todayStr(); else { $("mDay").value = 1; $("mRepeat").checked = true; $("mMonth").value = thisMonth(); syncRepeat(); }
   $(p + "Save").textContent = "Add"; $(p + "Cancel").classList.add("hidden");
 }
 function saveItem(type, fields) {
@@ -373,7 +387,8 @@ function saveItem(type, fields) {
   else {
     const old = items[i];
     // changing the date or term makes the old paid / skip marks meaningless
-    const keep = type === "koko" ? old.start === fields.start && old.term === fields.term : old.day === fields.day;
+    const keep = type === "koko" ? old.start === fields.start && old.term === fields.term
+      : old.day === fields.day && old.repeat === fields.repeat && old.month === fields.month;
     items[i] = { ...old, ...fields, marks:keep ? old.marks : {}, skips:keep ? old.skips : {} };
   }
   store.set(items); resetForm(type); renderItems();
@@ -381,7 +396,8 @@ function saveItem(type, fields) {
 $("mForm").addEventListener("submit", e => {
   e.preventDefault();
   saveItem("monthly", { name:$("mName").value.trim(), amount:parseFloat($("mAmt").value),
-    day:Math.min(31, Math.max(1, +$("mDay").value || 1)), match:$("mMatch").value.trim() });
+    day:Math.min(31, Math.max(1, +$("mDay").value || 1)), match:$("mMatch").value.trim(),
+    repeat:$("mRepeat").checked, month:$("mRepeat").checked ? undefined : $("mMonth").value });
 });
 $("kForm").addEventListener("submit", e => {
   e.preventDefault();
@@ -395,7 +411,7 @@ function startEdit(i) {
   editing[it.type] = i;
   $(p + "Name").value = it.name; $(p + "Amt").value = it.amount;
   if (k) { $("kStart").value = it.start; $("kTerm").value = it.term; }
-  else { $("mDay").value = it.day; $("mMatch").value = it.match || ""; }
+  else { $("mDay").value = it.day; $("mMatch").value = it.match || ""; $("mRepeat").checked = it.repeat !== false; $("mMonth").value = it.month || thisMonth(); syncRepeat(); }
   $(p + "Save").textContent = "Save changes"; $(p + "Cancel").classList.remove("hidden");
   $(p + "Form").scrollIntoView({ block:"center" }); $(p + "Name").focus();
 }

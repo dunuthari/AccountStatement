@@ -51,6 +51,10 @@
   .links { display:flex; gap:10px; margin-top:8px; font-size:13px; flex-wrap:wrap; }
   a { color:var(--accent); }
   .note { color:var(--muted); font-size:13px; margin:8px 0 0; }
+  .month { margin-top:14px; }
+  .month h3 { font-size:15px; margin:0 0 6px; display:flex; justify-content:space-between; gap:8px; flex-wrap:wrap; }
+  tr.skip td:not(.act) { opacity:.4; text-decoration:line-through; }
+  .st-paid { color:var(--credit); } .st-overdue { color:var(--debit); } .st-soon { color:var(--accent); }
   .hidden { display:none; }
 </style>
 </head>
@@ -86,21 +90,37 @@
     </div>
   </section>
 
-  <section class="card planner" id="planner">
-    <h2>Monthly payments and KOKO</h2>
-    <form class="form" id="addForm">
-      <label>Type
-        <select id="fType"><option value="monthly">Monthly bill</option><option value="koko">KOKO plan</option></select></label>
-      <label>Name<input id="fName" required placeholder="Gym"></label>
-      <label>Amount per payment<input id="fAmt" type="number" step="0.01" min="0" required placeholder="5000"></label>
-      <label id="lDay">Due day of month<input id="fDay" type="number" min="1" max="31" value="1"></label>
-      <label id="lStart" class="hidden">First payment date<input id="fStart" type="date"></label>
-      <label id="lTerm" class="hidden">Months<select id="fTerm"><option>3</option><option>4</option><option>6</option></select></label>
-      <label>Statement text (optional)<input id="fMatch" placeholder="KOKO"></label>
+  <section class="card planner" id="monthlySec">
+    <h2>Monthly payments</h2>
+    <p class="note" style="margin-top:0">Add a bill once and it is planned in all 6 months, starting this month.</p>
+    <form class="form" id="mForm">
+      <label>Name<input id="mName" required placeholder="Gym"></label>
+      <label>Amount<input id="mAmt" type="number" step="0.01" min="0" required placeholder="5000"></label>
+      <label>Due day of month<input id="mDay" type="number" min="1" max="31" value="1" required></label>
+      <label>Statement text (optional)<input id="mMatch" placeholder="GYM"></label>
       <button type="submit">Add</button>
     </form>
-    <div id="items"></div>
-    <p class="note">A payment is marked Paid automatically when your uploaded statement has a debit of the same amount (and matching text, if you gave one) around its due date. Use the button on a payment to mark or unmark it yourself. Reminders: use "Add to Google Calendar" on an item, which can notify you by email or phone.</p>
+    <div id="mItems"></div>
+  </section>
+
+  <section class="card planner" id="kokoSec">
+    <h2>KOKO payments</h2>
+    <p class="note" style="margin-top:0">The amount is charged on the payment date, then on the same day each month until the number of months is reached.</p>
+    <form class="form" id="kForm">
+      <label>Reason<input id="kName" required placeholder="Phone"></label>
+      <label>Amount per payment<input id="kAmt" type="number" step="0.01" min="0" required placeholder="5000"></label>
+      <label>Payment date<input id="kStart" type="date" required></label>
+      <label>No. of months<select id="kTerm"><option>3</option><option>4</option><option>6</option></select></label>
+      <button type="submit">Add</button>
+    </form>
+    <div id="kItems"></div>
+  </section>
+
+  <section class="card planner" id="planSec">
+    <h2>6-month plan</h2>
+    <div class="totals" id="planTotals"></div>
+    <div id="plan"></div>
+    <p class="note">A payment shows Paid automatically when your uploaded statement has a debit of the same amount near its date. Use Mark paid to set it yourself, or Skip to leave a payment out of the totals. Reminders: use "Add to Google Calendar" on an item for an email or phone notification.</p>
   </section>
 </main>
 
@@ -233,38 +253,37 @@ $("rows").addEventListener("click", e => {
 $("enableAll").onclick = () => { rows.forEach(r => r.on = true); render(); };
 $("ignoreAll").onclick = () => { rows.forEach(r => r.on = false); render(); };
 
-// ---------- Planner: monthly bills and KOKO plans ----------
+// ---------- Planner: monthly bills and KOKO plans, planned over 6 months ----------
 const store = {
   get() { try { return JSON.parse(localStorage.getItem("planner") || "[]"); } catch { return []; } },
   set(v) { try { localStorage.setItem("planner", JSON.stringify(v)); } catch {} }
 };
 let items = store.get();
-const MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const MON = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const ymd = d => `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,"0")}${String(d.getDate()).padStart(2,"0")}`;
-const fdate = d => `${d.getDate()} ${MON[d.getMonth()]} ${d.getFullYear()}`;
+const fdate = d => `${d.getDate()} ${MON[d.getMonth()].slice(0,3)} ${d.getFullYear()}`;
 const day0 = d => new Date(d.getFullYear(), d.getMonth(), d.getDate());
 function addMonths(y, m, day) {            // same day each month, clamped to month length
-  const last = new Date(y, m + 1, 0).getDate();
-  return new Date(y, m, Math.min(day, last));
+  return new Date(y, m, Math.min(day, new Date(y, m + 1, 0).getDate()));
 }
 function parseStmtDate(s) {
   const m = s.match(/^(\d{1,2})[\/\-. ](\d{1,2}|[A-Za-z]{3})[\/\-. ](\d{2,4})$/);
   if (!m) return null;
-  let mo = /^\d+$/.test(m[2]) ? +m[2] - 1 : MON.findIndex(x => x.toLowerCase() === m[2].toLowerCase());
+  const mo = /^\d+$/.test(m[2]) ? +m[2] - 1 : MON.findIndex(x => x.slice(0,3).toLowerCase() === m[2].toLowerCase());
   return new Date(+m[3] < 100 ? 2000 + +m[3] : +m[3], mo, +m[1]);
 }
 function occurrences(it) {
   const out = [], now = new Date();
   if (it.type === "koko") {
     const [y, m, d] = it.start.split("-").map(Number);
-    for (let k = 0; k < it.term; k++) out.push({ k, date:addMonths(y, m - 1 + k, d) });
+    for (let k = 0; k < it.term; k++) out.push({ k, n:k + 1, date:addMonths(y, m - 1 + k, d) });
   } else {
-    for (let k = -1; k <= 2; k++) out.push({ k, date:addMonths(now.getFullYear(), now.getMonth() + k, it.day) });
+    for (let k = 0; k < 6; k++) out.push({ k, n:k + 1, date:addMonths(now.getFullYear(), now.getMonth() + k, it.day) });
   }
   return out;
 }
 function autoPaid(it, date) {
-  const win = it.type === "koko" ? 3 : 15;   // days either side of the due date
+  const win = it.type === "koko" ? 3 : 15;   // days either side of the date
   return rows.some(r => {
     const d = parseStmtDate(r.date);
     if (!d || !r.debit || Math.abs(r.debit - it.amount) > 0.01) return false;
@@ -273,52 +292,90 @@ function autoPaid(it, date) {
   });
 }
 function status(it, o) {
-  const key = ymd(o.date), mark = (it.marks || {})[key];
+  const key = ymd(o.date), mark = (it.marks || {})[key], skip = !!(it.skips || {})[key];
   const paid = mark !== undefined ? mark : autoPaid(it, o.date);
   const days = Math.round((day0(o.date) - day0(new Date())) / 864e5);
-  return { key, paid, auto: mark === undefined, days, cls: paid ? "paid" : days < 0 ? "overdue" : days <= 7 ? "soon" : "" };
+  const label = skip ? "Skipped" : paid ? "Paid" : days < 0 ? "Overdue" : days === 0 ? "Due today" : "in " + days + " d";
+  return { key, paid, skip, days, label, cls: skip ? "" : paid ? "st-paid" : days < 0 ? "st-overdue" : days <= 7 ? "st-soon" : "" };
 }
 function calLink(it) {
-  const o = occurrences(it).find(o => day0(o.date) >= day0(new Date())) || occurrences(it)[0];
+  const all = occurrences(it);
+  const o = all.find(o => day0(o.date) >= day0(new Date())) || all[0];
   const end = new Date(o.date.getTime() + 864e5);
-  const rule = it.type === "koko" ? `FREQ=MONTHLY;COUNT=${it.term}` : "FREQ=MONTHLY";
+  const rule = it.type === "koko" ? `FREQ=MONTHLY;COUNT=${it.term}` : "FREQ=MONTHLY;COUNT=6";
   const p = new URLSearchParams({ action:"TEMPLATE", text:`Pay ${it.name} (${fmt(it.amount)})`,
     dates:`${ymd(o.date)}/${ymd(end)}`, details:`${it.name}: ${fmt(it.amount)}`, recur:`RRULE:${rule}` });
   return "https://calendar.google.com/calendar/render?" + p;
 }
-function renderItems() {
-  $("items").innerHTML = items.length ? items.map((it, i) => {
-    const occ = occurrences(it).map(o => ({ o, s:status(it, o) }));
-    const paidN = occ.filter(x => x.s.paid).length;
-    const summary = it.type === "koko"
-      ? `${paidN} of ${it.term} paid · ${it.term - paidN} left`
-      : `${fmt(it.amount)} on day ${it.day} each month`;
-    const chips = occ.map(({ o, s }) => `<button class="chip ${s.cls}" data-i="${i}" data-k="${s.key}" title="${s.auto ? "Matched from statement" : "Marked by you"}. Click to toggle.">
-      ${fdate(o.date)} · ${s.paid ? "Paid" : s.days < 0 ? "Overdue" : s.days === 0 ? "Due today" : "in " + s.days + " d"}</button>`).join("");
-    return `<div class="item"><header><strong>${esc(it.name)}</strong>
-      <span class="meta">${it.type === "koko" ? "KOKO · " + it.term + " months · " + fmt(it.amount) + " each" : "Monthly"} · ${summary}</span></header>
-      <div class="occ">${chips}</div>
+function itemList(type) {
+  const list = items.map((it, i) => ({ it, i })).filter(x => x.it.type === type);
+  if (!list.length) return `<p class="note">${type === "koko" ? "No KOKO payments yet." : "No monthly payments yet."}</p>`;
+  return list.map(({ it, i }) => {
+    const st = occurrences(it).map(o => status(it, o)).filter(s => !s.skip);
+    const paidN = st.filter(s => s.paid).length;
+    const info = type === "koko"
+      ? `${fmt(it.amount)} × ${it.term} months from ${fdate(new Date(it.start + "T00:00"))} · ${paidN} of ${it.term} paid · ${it.term - paidN} left`
+      : `${fmt(it.amount)} on day ${it.day} each month · next 6 months`;
+    return `<div class="item"><header><strong>${esc(it.name)}</strong><span class="meta">${info}</span></header>
       <div class="links"><a href="${calLink(it)}" target="_blank" rel="noopener">Add to Google Calendar</a>
       <button data-del="${i}">Remove</button></div></div>`;
-  }).join("") : `<p class="note">No payments yet. Add your office transport, wifi, gym or a KOKO plan above.</p>`;
+  }).join("");
 }
-$("fType").onchange = () => {
-  const k = $("fType").value === "koko";
-  $("lDay").classList.toggle("hidden", k); $("lStart").classList.toggle("hidden", !k); $("lTerm").classList.toggle("hidden", !k);
-  $("fStart").required = k;
-};
-$("addForm").addEventListener("submit", e => {
+function renderItems() {
+  $("mItems").innerHTML = itemList("monthly");
+  $("kItems").innerHTML = itemList("koko");
+  // collect every planned payment and group by month
+  const now = new Date(), months = [];
+  for (let k = 0; k < 6; k++) months.push({ y:now.getFullYear(), m:now.getMonth() + k, list:[] });
+  months.forEach(mo => { const d = new Date(mo.y, mo.m, 1); mo.y = d.getFullYear(); mo.m = d.getMonth(); });
+  items.forEach((it, i) => occurrences(it).forEach(o => {
+    const mo = months.find(x => x.y === o.date.getFullYear() && x.m === o.date.getMonth());
+    if (mo) mo.list.push({ it, i, o, s:status(it, o) });
+  }));
+  let total = 0, remaining = 0;
+  $("plan").innerHTML = months.map(mo => {
+    mo.list.sort((a, b) => a.o.date - b.o.date);
+    const sub = mo.list.filter(e => !e.s.skip).reduce((t, e) => t + e.it.amount, 0);
+    const rem = mo.list.filter(e => !e.s.skip && !e.s.paid).reduce((t, e) => t + e.it.amount, 0);
+    total += sub; remaining += rem;
+    const body = mo.list.length ? mo.list.map(e => `
+      <tr class="${e.s.skip ? "skip" : ""}">
+        <td>${fdate(e.o.date)}</td>
+        <td>${esc(e.it.name)}${e.it.type === "koko" ? ` <span class="meta">KOKO ${e.o.n}/${e.it.term}</span>` : ""}</td>
+        <td class="num debit">${fmt(e.it.amount)}</td>
+        <td class="${e.s.cls}">${e.s.label}</td>
+        <td class="act"><button data-i="${e.i}" data-k="${e.s.key}" data-act="paid">${e.s.paid ? "Unmark" : "Mark paid"}</button>
+          <button data-i="${e.i}" data-k="${e.s.key}" data-act="skip">${e.s.skip ? "Include" : "Skip"}</button></td>
+      </tr>`).join("") : `<tr><td colspan="5" class="meta">Nothing planned.</td></tr>`;
+    return `<div class="month"><h3><span>${MON[mo.m]} ${mo.y}</span><span class="debit">${fmt(sub)}</span></h3>
+      <div class="tablewrap"><table><tbody>${body}</tbody></table></div></div>`;
+  }).join("");
+  $("planTotals").innerHTML = `
+    <div class="tot"><small>Planned in 6 months</small><b class="debit">${fmt(total)}</b></div>
+    <div class="tot"><small>Still to pay</small><b>${fmt(remaining)}</b></div>
+    <div class="tot"><small>Already paid</small><b class="credit">${fmt(total - remaining)}</b></div>`;
+}
+const todayStr = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; };
+$("kStart").value = todayStr();
+$("mForm").addEventListener("submit", e => {
   e.preventDefault();
-  const type = $("fType").value;
-  items.push({ id:Date.now(), type, name:$("fName").value.trim(), amount:parseFloat($("fAmt").value),
-    day:+$("fDay").value || 1, start:$("fStart").value, term:+$("fTerm").value, match:$("fMatch").value.trim(), marks:{} });
-  store.set(items); $("addForm").reset(); $("fType").onchange(); renderItems();
+  items.push({ id:Date.now(), type:"monthly", name:$("mName").value.trim(), amount:parseFloat($("mAmt").value),
+    day:Math.min(31, Math.max(1, +$("mDay").value || 1)), match:$("mMatch").value.trim(), marks:{}, skips:{} });
+  store.set(items); $("mForm").reset(); $("mDay").value = 1; renderItems();
 });
-$("items").addEventListener("click", e => {
-  const c = e.target.closest("[data-k]"), d = e.target.closest("[data-del]");
+$("kForm").addEventListener("submit", e => {
+  e.preventDefault();
+  items.push({ id:Date.now(), type:"koko", name:$("kName").value.trim(), amount:parseFloat($("kAmt").value),
+    start:$("kStart").value, term:+$("kTerm").value, match:"", marks:{}, skips:{} });
+  store.set(items); $("kForm").reset(); $("kStart").value = todayStr(); renderItems();
+});
+document.addEventListener("click", e => {
+  const c = e.target.closest("[data-act]"), d = e.target.closest("[data-del]");
   if (c) {
-    const it = items[c.dataset.i], o = occurrences(it).find(o => ymd(o.date) === c.dataset.k);
-    it.marks ||= {}; it.marks[c.dataset.k] = !status(it, o).paid;
+    const it = items[c.dataset.i], k = c.dataset.k, o = occurrences(it).find(o => ymd(o.date) === k);
+    it.marks ||= {}; it.skips ||= {};
+    if (c.dataset.act === "paid") it.marks[k] = !status(it, o).paid;
+    else it.skips[k] = !it.skips[k];
   } else if (d) items.splice(d.dataset.del, 1);
   else return;
   store.set(items); renderItems();

@@ -72,10 +72,11 @@
 
   /* ---------- grid ---------- */
   .grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr) 340px; gap:16px;
-          grid-template-areas:"chart chart side" "limit limit side" "reg koko mix" "plan plan plan" "stmt stmt stmt"; }
+          grid-template-areas:"chart chart side" "limit limit side" "pair pair pair" "plan plan plan" "stmt stmt stmt"; }
+  .a-pair { grid-area:pair; display:grid; grid-template-columns:1fr 1fr; gap:16px; }
   .card { background:var(--card); border-radius:22px; padding:22px; min-width:0; scroll-margin-top:16px; }
   .a-chart { grid-area:chart; } .a-side { grid-area:side; display:flex; flex-direction:column; gap:16px; } .a-limit { grid-area:limit; }
-  .a-reg { grid-area:reg; } .a-koko { grid-area:koko; } .a-mix { grid-area:mix; } .a-plan { grid-area:plan; } .a-stmt { grid-area:stmt; }
+  .a-plan { grid-area:plan; } .a-stmt { grid-area:stmt; }
   .head { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; margin-bottom:14px; flex-wrap:wrap; }
   .grow { flex:1; }
   .head > div { min-width:0; }
@@ -93,15 +94,15 @@
   .yaxis span { position:absolute; right:10px; transform:translateY(50%); }
   .plot { position:relative; height:270px; }
   .gl { position:absolute; left:0; right:0; border-top:1px solid var(--line); }
-  .cols { position:absolute; inset:0; display:grid; grid-template-columns:repeat(12,minmax(0,1fr)); gap:8px; }
+  .cols { position:absolute; inset:0; display:grid; gap:8px; }
   .col { position:relative; display:flex; flex-direction:column; justify-content:flex-end; cursor:pointer; outline-offset:-2px; border-radius:10px; }
-  .stack { width:100%; max-width:44px; margin:0 auto; display:flex; flex-direction:column-reverse; gap:3px; }
+  .stack { width:100%; max-width:72px; margin:0 auto; display:flex; flex-direction:column-reverse; gap:3px; }
   .seg { width:100%; border-radius:7px; background:var(--ghost); min-height:4px; transition:background .15s; }
   .col.sel .seg.reg { background:linear-gradient(180deg,var(--lime),var(--lime-d)); }
   .col.sel .seg.one { background:var(--yellow); }
   .col.sel .seg.koko { background:var(--orange); }
   .col.empty .stack { height:4px; background:var(--ghost); border-radius:4px; }
-  .xlabels { grid-column:2; display:grid; grid-template-columns:repeat(12,minmax(0,1fr)); gap:8px; margin-top:8px; text-align:center; color:var(--muted); font-size:12px; }
+  .xlabels { grid-column:2; display:grid; gap:8px; margin-top:8px; text-align:center; color:var(--muted); font-size:12px; }
   .xlabels .sel { color:var(--ink); font-weight:700; }
   .tip { position:absolute; z-index:3; width:196px; background:var(--card); border-radius:12px; padding:10px 12px; box-shadow:var(--shadow); font-size:12px;
          left:calc(50% + 26px); pointer-events:none; }
@@ -164,17 +165,8 @@
   .sw::after { content:""; position:absolute; top:3px; left:3px; width:16px; height:16px; border-radius:50%; background:#fff; transition:transform .15s; box-shadow:0 1px 3px rgba(0,0,0,.3); }
   .sw:checked { background:linear-gradient(90deg,var(--lime),var(--lime-d)) !important; } .sw:checked::after { transform:translateX(16px); }
 
-  /* mix card */
-  .donutwrap { display:grid; place-items:center; margin:4px 0 14px; }
-  .donut { width:168px; height:168px; border-radius:50%; display:grid; place-items:center; background:conic-gradient(var(--lime-d) 0 var(--p,0%), var(--soft) var(--p,0%) 100%); }
-  .donut div { width:120px; height:120px; border-radius:50%; background:var(--card); display:grid; place-items:center; text-align:center; }
-  .donut b { font-size:28px; letter-spacing:-.03em; display:block; line-height:1; } .donut small { color:var(--muted); font-size:12px; }
-  .seg3 { display:flex; height:14px; gap:3px; margin-bottom:12px; } .seg3 i { border-radius:5px; background:var(--c); }
-  .mixrow { display:flex; justify-content:space-between; padding:3px 0; font-size:13px; }
-  .mixrow span::before { content:""; display:inline-block; width:9px; height:9px; border-radius:2px; margin-right:8px; background:var(--c); }
-
   /* plan */
-  .months { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:14px; }
+  .months { display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:14px; }
   .mon { background:var(--soft); border-radius:18px; padding:14px 16px; }
   .mon h3 { display:flex; justify-content:space-between; font-size:14px; font-weight:700; margin-bottom:6px; }
   .pill { background:var(--card); border-radius:999px; padding:2px 10px; font-size:12px; font-weight:700; }
@@ -195,7 +187,7 @@
   .debit { color:var(--red); } .credit { color:var(--green); }
 
   @media (max-width:1180px) {
-    .grid { grid-template-columns:minmax(0,1fr) minmax(0,1fr); grid-template-areas:"chart chart" "side side" "limit limit" "reg koko" "mix mix" "plan plan" "stmt stmt"; }
+    .grid { grid-template-columns:minmax(0,1fr) minmax(0,1fr); grid-template-areas:"chart chart" "side side" "limit limit" "pair pair" "plan plan" "stmt stmt"; }
     .a-side { flex-direction:row; flex-wrap:wrap; } .a-side > * { flex:1 1 300px; }
   }
   @media (max-width:860px) {
@@ -203,7 +195,8 @@
     aside { position:static; height:auto; min-height:0; flex-direction:row; align-items:center; padding:10px; border-radius:18px; overflow-x:auto; }
     .logo { padding:0 8px; } nav { flex-direction:row; } nav a { padding:9px 12px; white-space:nowrap; } nav a span { display:inline; }
     nav a.on::before, .privacy { display:none; }
-    .grid { grid-template-columns:minmax(0,1fr); grid-template-areas:"chart" "side" "limit" "reg" "koko" "mix" "plan" "stmt"; }
+    .grid { grid-template-columns:minmax(0,1fr); grid-template-areas:"chart" "side" "limit" "pair" "plan" "stmt"; }
+    .a-pair { grid-template-columns:minmax(0,1fr); }
     .chartcard { grid-template-columns:1fr; } .kpis { flex-direction:row; flex-wrap:wrap; gap:18px; }
     .a-side { flex-direction:column; } .a-side > * { flex:none; width:100%; }
     .card { padding:16px; } .big-num { font-size:30px; }
@@ -221,7 +214,7 @@
       <a href="#statement"><svg viewBox="0 0 24 24"><path d="M7 3h8l4 4v14H7z"/><path d="M15 3v4h4M10 12h6M10 16h6"/></svg><span>Statement</span></a>
       <a href="#payments"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10"/></svg><span>Payments</span></a>
       <a href="#koko"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="3"/><path d="M3 10h18"/></svg><span>KOKO</span></a>
-      <a href="#plan"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4M3 10h18"/></svg><span>12-month plan</span></a>
+      <a href="#plan"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4M3 10h18"/></svg><span>Year plan</span></a>
     </nav>
     <div class="privacy">
       <div class="bolt"><svg viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/></svg></div>
@@ -244,7 +237,7 @@
         <div class="chartcard">
           <div>
             <div class="head">
-              <div><div class="big-num num" id="planTotal">0.00</div><small class="muted">Planned payments, next 12 months</small></div>
+              <div><div class="big-num num" id="planTotal">0.00</div><small class="muted">Planned payments, rest of <span id="yr"></span></small></div>
               <div class="legend">
                 <span style="--c:var(--lime)">Regular</span><span style="--c:var(--yellow)">One-time</span><span style="--c:var(--orange)">KOKO</span>
               </div>
@@ -285,6 +278,7 @@
         <div class="barlabels"><span>Paid <b class="num" id="paidAmt">0.00</b></span><span>Planned <b class="num" id="planAmt">0.00</b></span></div>
       </section>
 
+      <div class="a-pair">
       <section class="card a-reg" id="payments">
         <div class="head"><div><h2>Regular and one-time</h2><small>Gym, wifi, transport, insurance</small></div>
           <button class="btn" id="mToggle" type="button">+ Add</button></div>
@@ -292,7 +286,7 @@
           <label class="full">Name<input id="mName" required placeholder="Gym"></label>
           <label>Amount<input id="mAmt" type="number" step="0.01" min="0" required placeholder="5000"></label>
           <label>Due day of month<input id="mDay" type="number" min="1" max="31" value="1" required></label>
-          <label class="full chk"><span>Repeat every month (whole year)</span><input id="mRepeat" class="sw" type="checkbox" checked></label>
+          <label class="full chk"><span>Repeat every month until December</span><input id="mRepeat" class="sw" type="checkbox" checked></label>
           <label class="full hidden" id="lMonth">Month<input id="mMonth" type="month"></label>
           <label class="full">Statement text (optional)<input id="mMatch" placeholder="GYM"></label>
           <div class="btns"><button class="btn dark" type="submit" id="mSave">Add</button><button class="btn" type="button" id="mCancel">Cancel</button></div>
@@ -313,15 +307,10 @@
         <div class="items" id="kItems"></div>
       </section>
 
-      <section class="card a-mix">
-        <div class="head"><div><h2>Plan overview</h2><small>Share of planned total</small></div></div>
-        <div class="donutwrap"><div class="donut" id="donut"><div><span><b id="donutPct">0%</b><small>paid</small></span></div></div></div>
-        <div class="seg3" id="seg3"></div>
-        <div id="mix"></div>
-      </section>
+      </div>
 
       <section class="card a-plan" id="plan">
-        <div class="head"><div><h2>12-month plan</h2><small>Paid is matched from your statement. Mark paid or skip to override.</small></div></div>
+        <div class="head"><div><h2>Plan for the rest of the year</h2><small>Paid is matched from your statement. Mark paid or skip to override.</small></div></div>
         <div class="months" id="months"></div>
       </section>
 
@@ -493,16 +482,20 @@ function parseStmtDate(s) {
   const mo = /^\d+$/.test(m[2]) ? +m[2] - 1 : MON.findIndex(x => x.slice(0,3).toLowerCase() === m[2].toLowerCase());
   return new Date(+m[3] < 100 ? 2000 + +m[3] : +m[3], mo, +m[1]);
 }
+const YEAR = new Date().getFullYear();
+const MONTHS_LEFT = 12 - new Date().getMonth();          // this month through December only
 const cat = it => it.type === "koko" ? "koko" : it.repeat === false ? "one" : "reg";
 function occurrences(it) {
   const out = [], now = new Date();
   if (it.type === "koko") {
     const [y, m, d] = it.start.split("-").map(Number);
     for (let k = 0; k < it.term; k++) out.push({ k, n:k + 1, date:addMonths(y, m - 1 + k, d) });
+    return out.filter(o => o.date.getFullYear() === YEAR);
   } else if (it.repeat === false) {
     const [y, m] = it.month.split("-").map(Number);
     out.push({ k:0, n:1, date:addMonths(y, m - 1, it.day) });
-  } else for (let k = 0; k < 12; k++) out.push({ k, n:k + 1, date:addMonths(now.getFullYear(), now.getMonth() + k, it.day) });
+    return out.filter(o => o.date.getFullYear() === YEAR);
+  } else for (let k = 0; k < MONTHS_LEFT; k++) out.push({ k, n:k + 1, date:addMonths(now.getFullYear(), now.getMonth() + k, it.day) });
   return out;
 }
 function autoPaid(it, date) {
@@ -523,9 +516,10 @@ function status(it, o) {
 }
 function calLink(it) {
   const all = occurrences(it);
+  if (!all.length) return "#";
   const o = all.find(o => day0(o.date) >= day0(new Date())) || all[0];
   const end = new Date(o.date.getTime() + 864e5);
-  const rule = it.type === "koko" ? `FREQ=MONTHLY;COUNT=${it.term}` : it.repeat === false ? "" : "FREQ=MONTHLY;COUNT=12";
+  const rule = it.repeat === false ? "" : `FREQ=MONTHLY;COUNT=${all.length}`;
   const p = new URLSearchParams({ action:"TEMPLATE", text:`Pay ${it.name} (${fmt(it.amount)})`,
     dates:`${ymd(o.date)}/${ymd(end)}`, details:`${it.name}: ${fmt(it.amount)}` });
   if (rule) p.set("recur", "RRULE:" + rule);
@@ -543,9 +537,9 @@ function itemCards(type) {
     const actions = `<div class="actions"><a class="btn sm" href="${calLink(it)}" target="_blank" rel="noopener">Calendar</a>
       <button class="btn sm" data-edit="${i}">Edit</button><button class="btn sm" data-del="${i}">Remove</button></div>`;
     if (type === "koko") return `<div class="item"><div class="top"><b>${esc(it.name)}</b><span class="num">${fmt(it.amount)} × ${it.term}</span></div>
-      <div class="sub">From ${fdate(new Date(it.start + "T00:00"))} · ${paidN} of ${it.term} paid · ${it.term - paidN} left</div>
-      <div class="bar thin org"><i style="width:${Math.round(paidN / it.term * 100)}%"></i></div>${actions}</div>`;
-    const sub = it.repeat === false ? `Once, ${fdate(occurrences(it)[0].date)}` : `Day ${it.day} of every month · whole year`;
+      <div class="sub">From ${fdate(new Date(it.start + "T00:00"))} · ${paidN} of ${st.length} paid this year · ${st.length - paidN} left</div>
+      <div class="bar thin org"><i style="width:${st.length ? Math.round(paidN / st.length * 100) : 0}%"></i></div>${actions}</div>`;
+    const sub = it.repeat === false ? `Once, ${occurrences(it).length ? fdate(occurrences(it)[0].date) : "not in " + YEAR}` : `Day ${it.day} of every month until December`;
     return `<div class="item"><div class="top"><b>${esc(it.name)}</b><span class="num">${fmt(it.amount)}</span></div>
       <div class="sub">${sub}</div>${actions}</div>`;
   }).join("");
@@ -557,7 +551,7 @@ function renderItems() {
 
   // gather planned payments by month
   const now = new Date(), months = [];
-  for (let k = 0; k < 12; k++) { const d = new Date(now.getFullYear(), now.getMonth() + k, 1); months.push({ y:d.getFullYear(), m:d.getMonth(), list:[] }); }
+  for (let k = 0; k < MONTHS_LEFT; k++) { const d = new Date(now.getFullYear(), now.getMonth() + k, 1); months.push({ y:d.getFullYear(), m:d.getMonth(), list:[] }); }
   items.forEach((it, i) => occurrences(it).forEach(o => {
     const mo = months.find(x => x.y === o.date.getFullYear() && x.m === o.date.getMonth());
     if (mo) mo.list.push({ it, i, o, s:status(it, o), c:cat(it) });
@@ -578,23 +572,19 @@ function renderItems() {
   const pow = Math.pow(10, Math.floor(Math.log10(rawMax)));
   const max = Math.ceil(rawMax / pow * 2) / 2 * pow;       // nice ceiling (steps of 0.5 × 10^n)
   $("yaxis").innerHTML = [0, .5, 1].map(f => `<span style="bottom:${f * 100}%">${compact(max * f)}</span>`).join("");
-  $("plot").innerHTML = [0, .5, 1].map(f => `<div class="gl" style="bottom:${f * 100}%"></div>`).join("") + `<div class="cols">` + months.map((mo, k) => {
+  $("plot").innerHTML = [0, .5, 1].map(f => `<div class="gl" style="bottom:${f * 100}%"></div>`).join("") + `<div class="cols" style="grid-template-columns:repeat(${MONTHS_LEFT},minmax(0,1fr))">` + months.map((mo, k) => {
     const seg = c => mo.by[c] ? `<div class="seg ${c}" style="height:${Math.max(4, mo.by[c] / max * 270)}px"></div>` : "";
-    const tip = k === selMonth ? `<div class="tip ${k > 7 ? "r" : ""}" style="bottom:${Math.min(Math.max(mo.total / max * 270 - 40, 0), 150)}px">
+    const tip = k === selMonth ? `<div class="tip ${k > MONTHS_LEFT - 3 ? "r" : ""}" style="bottom:${Math.min(Math.max(mo.total / max * 270 - 40, 0), 150)}px">
       <b>${MON[mo.m]} ${mo.y}</b>${["reg","one","koko"].map(c => `<div style="--c:${COLOR[c]}"><span>${LABEL[c]}</span><span>${fmt(mo.by[c])}</span></div>`).join("")}</div>` : "";
     return `<div class="col ${k === selMonth ? "sel" : ""} ${mo.total ? "" : "empty"}" data-m="${k}" tabindex="0" role="button" aria-label="${MON[mo.m]} ${mo.y}: ${fmt(mo.total)} planned">
       ${tip}<div class="stack">${seg("reg")}${seg("one")}${seg("koko")}</div></div>`;
   }).join("") + `</div>`;
+  $("xlabels").style.gridTemplateColumns = `repeat(${MONTHS_LEFT},minmax(0,1fr))`;
   $("xlabels").innerHTML = months.map((mo, k) => `<span class="${k === selMonth ? "sel" : ""}">${MON[mo.m].slice(0, 3)}</span>`).join("");
 
   // progress + overview
   const pct = total ? Math.round(paid / total * 100) : 0;
   $("limitFill").style.width = pct + "%"; $("paidAmt").textContent = fmt(paid); $("planAmt").textContent = fmt(total);
-  $("donut").style.setProperty("--p", pct + "%"); $("donutPct").textContent = pct + "%";
-  const by = { reg:0, one:0, koko:0 }; all.forEach(e => by[e.c] += e.it.amount);
-  $("seg3").innerHTML = ["reg","one","koko"].filter(c => by[c]).map(c => `<i style="--c:${COLOR[c]};flex:${by[c]}"></i>`).join("") || `<i style="--c:var(--soft);flex:1"></i>`;
-  $("mix").innerHTML = ["reg","one","koko"].map(c => `<div class="mixrow" style="--c:${COLOR[c]}"><span>${LABEL[c]}</span><b class="num">${total ? Math.round(by[c] / total * 100) : 0}%</b></div>`).join("");
-
   // next due
   const due = all.filter(e => !e.s.paid).sort((a, b) => a.o.date - b.o.date).slice(0, 4);
   $("nextDue").innerHTML = due.length ? due.map(e => `<div class="row"><div class="badge" style="--c:${COLOR[e.c]}">${esc(e.it.name.charAt(0).toUpperCase())}</div>
@@ -621,6 +611,7 @@ const todayStr = () => { const d = new Date(); return `${d.getFullYear()}-${Stri
 const thisMonth = () => todayStr().slice(0, 7);
 function syncRepeat() { $("lMonth").classList.toggle("hidden", $("mRepeat").checked); $("mMonth").required = !$("mRepeat").checked; }
 $("kStart").value = todayStr(); $("mMonth").min = $("mMonth").value = thisMonth();
+$("mMonth").max = YEAR + "-12"; $("yr").textContent = YEAR;
 $("mRepeat").onchange = syncRepeat;
 const editing = { monthly:null, koko:null };
 function showForm(type, on) { $((type === "koko" ? "k" : "m") + "Form").classList.toggle("hidden", !on); }

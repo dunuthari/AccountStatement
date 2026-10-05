@@ -98,7 +98,8 @@
       <label>Amount<input id="mAmt" type="number" step="0.01" min="0" required placeholder="5000"></label>
       <label>Due day of month<input id="mDay" type="number" min="1" max="31" value="1" required></label>
       <label>Statement text (optional)<input id="mMatch" placeholder="GYM"></label>
-      <button type="submit">Add</button>
+      <button type="submit" id="mSave">Add</button>
+      <button type="button" id="mCancel" class="hidden">Cancel</button>
     </form>
     <div id="mItems"></div>
   </section>
@@ -111,7 +112,8 @@
       <label>Amount per payment<input id="kAmt" type="number" step="0.01" min="0" required placeholder="5000"></label>
       <label>Payment date<input id="kStart" type="date" required></label>
       <label>No. of months<select id="kTerm"><option>3</option><option>4</option><option>6</option></select></label>
-      <button type="submit">Add</button>
+      <button type="submit" id="kSave">Add</button>
+      <button type="button" id="kCancel" class="hidden">Cancel</button>
     </form>
     <div id="kItems"></div>
   </section>
@@ -318,7 +320,7 @@ function itemList(type) {
       : `${fmt(it.amount)} on day ${it.day} each month · next 6 months`;
     return `<div class="item"><header><strong>${esc(it.name)}</strong><span class="meta">${info}</span></header>
       <div class="links"><a href="${calLink(it)}" target="_blank" rel="noopener">Add to Google Calendar</a>
-      <button data-del="${i}">Remove</button></div></div>`;
+      <button data-edit="${i}">Edit</button> <button data-del="${i}">Remove</button></div></div>`;
   }).join("");
 }
 function renderItems() {
@@ -357,26 +359,55 @@ function renderItems() {
 }
 const todayStr = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; };
 $("kStart").value = todayStr();
+const editing = { monthly:null, koko:null };   // index of the item being edited
+function resetForm(type) {
+  const p = type === "koko" ? "k" : "m";
+  editing[type] = null;
+  $(p + "Form").reset();
+  if (type === "koko") $("kStart").value = todayStr(); else $("mDay").value = 1;
+  $(p + "Save").textContent = "Add"; $(p + "Cancel").classList.add("hidden");
+}
+function saveItem(type, fields) {
+  const i = editing[type];
+  if (i == null) items.push({ id:Date.now(), type, marks:{}, skips:{}, ...fields });
+  else {
+    const old = items[i];
+    // changing the date or term makes the old paid / skip marks meaningless
+    const keep = type === "koko" ? old.start === fields.start && old.term === fields.term : old.day === fields.day;
+    items[i] = { ...old, ...fields, marks:keep ? old.marks : {}, skips:keep ? old.skips : {} };
+  }
+  store.set(items); resetForm(type); renderItems();
+}
 $("mForm").addEventListener("submit", e => {
   e.preventDefault();
-  items.push({ id:Date.now(), type:"monthly", name:$("mName").value.trim(), amount:parseFloat($("mAmt").value),
-    day:Math.min(31, Math.max(1, +$("mDay").value || 1)), match:$("mMatch").value.trim(), marks:{}, skips:{} });
-  store.set(items); $("mForm").reset(); $("mDay").value = 1; renderItems();
+  saveItem("monthly", { name:$("mName").value.trim(), amount:parseFloat($("mAmt").value),
+    day:Math.min(31, Math.max(1, +$("mDay").value || 1)), match:$("mMatch").value.trim() });
 });
 $("kForm").addEventListener("submit", e => {
   e.preventDefault();
-  items.push({ id:Date.now(), type:"koko", name:$("kName").value.trim(), amount:parseFloat($("kAmt").value),
-    start:$("kStart").value, term:+$("kTerm").value, match:"", marks:{}, skips:{} });
-  store.set(items); $("kForm").reset(); $("kStart").value = todayStr(); renderItems();
+  saveItem("koko", { name:$("kName").value.trim(), amount:parseFloat($("kAmt").value),
+    start:$("kStart").value, term:+$("kTerm").value, match:"" });
 });
+$("mCancel").onclick = () => resetForm("monthly");
+$("kCancel").onclick = () => resetForm("koko");
+function startEdit(i) {
+  const it = items[i], k = it.type === "koko", p = k ? "k" : "m";
+  editing[it.type] = i;
+  $(p + "Name").value = it.name; $(p + "Amt").value = it.amount;
+  if (k) { $("kStart").value = it.start; $("kTerm").value = it.term; }
+  else { $("mDay").value = it.day; $("mMatch").value = it.match || ""; }
+  $(p + "Save").textContent = "Save changes"; $(p + "Cancel").classList.remove("hidden");
+  $(p + "Form").scrollIntoView({ block:"center" }); $(p + "Name").focus();
+}
 document.addEventListener("click", e => {
-  const c = e.target.closest("[data-act]"), d = e.target.closest("[data-del]");
+  const c = e.target.closest("[data-act]"), d = e.target.closest("[data-del]"), ed = e.target.closest("[data-edit]");
+  if (ed) { startEdit(+ed.dataset.edit); return; }
   if (c) {
     const it = items[c.dataset.i], k = c.dataset.k, o = occurrences(it).find(o => ymd(o.date) === k);
     it.marks ||= {}; it.skips ||= {};
     if (c.dataset.act === "paid") it.marks[k] = !status(it, o).paid;
     else it.skips[k] = !it.skips[k];
-  } else if (d) items.splice(d.dataset.del, 1);
+  } else if (d) { items.splice(d.dataset.del, 1); resetForm("monthly"); resetForm("koko"); }
   else return;
   store.set(items); renderItems();
 });

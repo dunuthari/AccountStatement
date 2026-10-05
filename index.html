@@ -74,7 +74,8 @@
 
   /* ---------- grid ---------- */
   .grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr) 340px; gap:16px;
-          grid-template-areas:"chart chart side" "limit limit side" "pair pair pair" "plan plan plan" "stmt stmt stmt"; }
+          grid-template-areas:"chart chart side" "limit limit side" "pair pair pair" "plan plan plan" "stmt stmt stmt" "upload upload upload"; }
+  .a-upload { grid-area:upload; }
   .a-pair { grid-area:pair; display:grid; grid-template-columns:1fr 1fr; gap:16px; }
   .card { background:var(--card); border-radius:22px; padding:22px; min-width:0; scroll-margin-top:16px; }
   .a-chart { grid-area:chart; } .a-side { grid-area:side; display:flex; flex-direction:column; gap:16px; } .a-limit { grid-area:limit; }
@@ -195,7 +196,7 @@
   .debit { color:var(--red); } .credit { color:var(--green); }
 
   @media (max-width:1180px) {
-    .grid { grid-template-columns:minmax(0,1fr) minmax(0,1fr); grid-template-areas:"chart chart" "side side" "limit limit" "pair pair" "plan plan" "stmt stmt"; }
+    .grid { grid-template-columns:minmax(0,1fr) minmax(0,1fr); grid-template-areas:"chart chart" "side side" "limit limit" "pair pair" "plan plan" "stmt stmt" "upload upload"; }
     .a-side { flex-direction:row; flex-wrap:wrap; } .a-side > * { flex:1 1 300px; }
   }
   @media (max-width:860px) {
@@ -211,7 +212,7 @@
     nav a.on { box-shadow:none; background:var(--soft); }
     nav a.on::before { display:none; }
     nav a span { display:block; }
-    .grid { grid-template-columns:minmax(0,1fr); grid-template-areas:"side" "chart" "limit" "pair" "plan" "stmt"; }
+    .grid { grid-template-columns:minmax(0,1fr); grid-template-areas:"side" "chart" "limit" "pair" "plan" "stmt" "upload"; }
     .a-pair { grid-template-columns:minmax(0,1fr); gap:12px; }
     .a-side { flex-direction:column; gap:12px; } .a-side > * { flex:none; width:100%; }
     .card { padding:16px; border-radius:20px; }
@@ -316,15 +317,6 @@
       </section>
 
       <div class="a-side">
-        <section class="card upload" id="uploadCard">
-          <div class="head"><div><h2>Statement</h2><small>PDF, text-based</small></div></div>
-          <label class="drop" id="drop" for="file">
-            <svg viewBox="0 0 24 24"><path d="M7 3h8l4 4v14H7z"/><path d="M15 3v4h4M12 17v-6M9 14l3-3 3 3"/></svg>
-            <span><span class="dsk">Drop your statement PDF or click</span><span class="mob">Tap to choose your statement PDF</span></span><small>Processed in your browser</small>
-          </label>
-          <input id="file" type="file" accept="application/pdf">
-          <div id="msg"></div>
-        </section>
         <section class="card grow">
           <div class="head"><div><h2>Next due</h2><small>Unpaid payments</small></div></div>
           <div class="list" id="nextDue"></div>
@@ -383,6 +375,16 @@
           </table>
         </div>
       </section>
+
+      <section class="card upload a-upload" id="uploadCard">
+          <div class="head"><div><h2>Upload statement</h2><small>PDF, text-based</small></div></div>
+          <label class="drop" id="drop" for="file">
+            <svg viewBox="0 0 24 24"><path d="M7 3h8l4 4v14H7z"/><path d="M15 3v4h4M12 17v-6M9 14l3-3 3 3"/></svg>
+            <span><span class="dsk">Drop your statement PDF or click</span><span class="mob">Tap to choose your statement PDF</span></span><small>Processed in your browser</small>
+          </label>
+          <input id="file" type="file" accept="application/pdf">
+          <div id="msg"></div>
+        </section>
     </div>
   </main>
 </div>

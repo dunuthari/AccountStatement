@@ -113,6 +113,10 @@
   .tip div { display:flex; justify-content:space-between; gap:8px; margin-top:3px; font-weight:600; }
   .tip div span:first-child { white-space:nowrap; }
   .tip div span::before { content:""; display:inline-block; width:7px; height:7px; border-radius:50%; margin-right:6px; background:var(--c); }
+  .mchips { display:flex; flex-wrap:wrap; gap:8px; margin:2px 0 10px; }
+  .mchip { background:var(--soft); border-radius:12px; padding:6px 12px; font-size:12px; color:var(--muted); border:1px solid transparent; }
+  .mchip b { display:block; font-size:15px; color:var(--red); font-weight:700; }
+  .mchip.cur { border-color:var(--ink); color:var(--ink); }
   .kpis { display:flex; flex-direction:column; gap:22px; padding-top:6px; }
   .kpis small { color:var(--muted); font-size:12px; display:block; margin-bottom:2px; }
   .delta { font-size:12px; color:var(--muted); }
@@ -295,6 +299,7 @@
                 <span style="--c:var(--lime)">Regular</span><span style="--c:var(--yellow)">One-time</span><span style="--c:var(--orange)">KOKO</span>
               </div>
             </div>
+            <div class="mchips" id="mDebits"></div>
             <div class="muted" style="font-size:12px;margin-top:4px">Planned payments, rest of <span id="yr"></span></div>
             <div class="chart">
               <div class="yaxis" id="yaxis"></div>
@@ -492,6 +497,10 @@ function render() {
   const monthDebit = on.reduce((s, r) => { const d = parseStmtDate(r.date); return d && d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() ? s + r.debit : s; }, 0);
   $("planTotal").textContent = fmt(monthDebit);
   $("planSub").textContent = `Debits in ${MON[now.getMonth()]} ${now.getFullYear()}` + (rows.length ? "" : " · upload a statement");
+  const byMonth = {};
+  on.forEach(r => { const d = parseStmtDate(r.date); if (d && r.debit) { const k = d.getFullYear() * 12 + d.getMonth(); byMonth[k] = (byMonth[k] || 0) + r.debit; } });
+  const curK = now.getFullYear() * 12 + now.getMonth();
+  $("mDebits").innerHTML = Object.keys(byMonth).sort((a, b) => a - b).map(k => `<div class="mchip ${+k === curK ? "cur" : ""}">${MON[k % 12].slice(0, 3)} ${Math.floor(k / 12)}<b class="num">${fmt(byMonth[k])}</b></div>`).join("");
   const nd = on.filter(r => r.debit).length, nc = on.filter(r => r.credit).length;
   if (rows.length) {
     $("dd").textContent = `${nd} debits counted`; $("dc").textContent = `${nc} credits counted`;
@@ -629,7 +638,8 @@ function renderItems() {
   const rawMax = Math.max(1, ...months.map(m => m.total));
   const pow = Math.pow(10, Math.floor(Math.log10(rawMax)));
   const max = Math.ceil(rawMax / pow * 2) / 2 * pow;       // nice ceiling (steps of 0.5 × 10^n)
-  $("yaxis").innerHTML = [0, .5, 1].map(f => `<span style="bottom:${f * 100}%">${compact(max * f)}</span>`).join("");
+  const hasData = months.some(m => m.total);
+  $("yaxis").innerHTML = (hasData ? [0, .5, 1] : [0]).map(f => `<span style="bottom:${f * 100}%">${compact(max * f)}</span>`).join("");
   $("plot").innerHTML = [0, .5, 1].map(f => `<div class="gl" style="bottom:${f * 100}%"></div>`).join("") + `<div class="cols" style="grid-template-columns:repeat(${MONTHS_LEFT},minmax(0,1fr))">` + months.map((mo, k) => {
     const seg = c => mo.by[c] ? `<div class="seg ${c}" style="height:${Math.max(4, mo.by[c] / max * H)}px"></div>` : "";
     const tip = k === selMonth ? `<div class="tip ${k > MONTHS_LEFT - 3 ? "r" : ""}" style="bottom:${Math.min(Math.max(mo.total / max * H - 40, 0), H - 120)}px">

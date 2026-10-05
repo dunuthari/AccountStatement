@@ -90,7 +90,7 @@ async function readLines(pdf) {
   for (let p = 1; p <= pdf.numPages; p++) {
     const items = (await (await pdf.getPage(p)).getTextContent()).items
       .filter(i => i.str.trim())
-      .map(i => ({ s:i.str.trim(), x:i.transform[4], y:i.transform[5] }));
+      .map(i => ({ s:i.str.trim(), x:i.transform[4], r:i.transform[4] + i.width, y:i.transform[5] }));
     items.sort((a, b) => b.y - a.y || a.x - b.x);
     let cur = null;
     for (const it of items) {
@@ -109,9 +109,10 @@ function findColumns(lines) {
       const cols = {};
       for (const i of l.items) {
         const s = i.s.toLowerCase();
-        if (/^(debit|withdrawal)/.test(s)) cols.debit = i.x;
-        else if (/^(credit|deposit)/.test(s)) cols.credit = i.x;
-        else if (/^balance/.test(s)) cols.balance = i.x;
+        // amounts are right-aligned, so remember each numeric header's right edge
+        if (/^(debit|withdrawal)/.test(s)) cols.debit = i.r;
+        else if (/^(credit|deposit)/.test(s)) cols.credit = i.r;
+        else if (/^balance/.test(s)) cols.balance = i.r;
         else if (/^(ref|chq|cheque)/.test(s)) cols.ref = i.x;
         else if (/^(particulars|description|narration)/.test(s)) cols.part = i.x;
       }
@@ -130,25 +131,25 @@ function parse(lines) {
     const first = l.items[0];
     const isTxn = first && DATE.test(first.s);
     if (!isTxn) {
-      // continuation line: append to previous particulars
+      // wrapped particulars line: only if it sits under the previous row's particulars
       const prev = result[result.length - 1];
-      if (prev && l.items.every(i => !AMOUNT.test(i.s)) && l.items[0].x > (cols.part ?? 0) - 15)
+      if (prev && prev.px != null && l.items.every(i => !AMOUNT.test(i.s)) && Math.abs(l.items[0].x - prev.px) < 5)
         prev.particulars += " " + l.items.map(i => i.s).join(" ");
       continue;
     }
     const row = { date:first.s, ref:"", particulars:"", debit:0, credit:0, on:true };
     const amounts = [];
-    const mids = [cols.ref, cols.part].filter(v => v != null);
+    // text items after the date: first is the Ref. No, the rest is Particulars
     for (const i of l.items.slice(1)) {
       if (AMOUNT.test(i.s)) amounts.push(i);
-      else if (cols.ref != null && cols.part != null && i.x < cols.part - 5) row.ref += (row.ref ? " " : "") + i.s;
-      else row.particulars += (row.particulars ? " " : "") + i.s;
+      else if (!row.ref) row.ref = i.s;
+      else { row.particulars += (row.particulars ? " " : "") + i.s; row.px ??= i.x; }
     }
     // Map each amount to the nearest of the debit / credit / balance columns.
     const targets = [["debit", cols.debit], ["credit", cols.credit]];
     if (cols.balance != null) targets.push(["balance", cols.balance]);
     for (const a of amounts) {
-      const nearest = targets.reduce((m, t) => Math.abs(t[1] - a.x) < Math.abs(m[1] - a.x) ? t : m);
+      const nearest = targets.reduce((m, t) => Math.abs(t[1] - a.r) < Math.abs(m[1] - a.r) ? t : m);
       if (nearest[0] === "debit") row.debit = toNum(a.s);
       else if (nearest[0] === "credit") row.credit = toNum(a.s);
       else prevBalance = toNum(a.s);

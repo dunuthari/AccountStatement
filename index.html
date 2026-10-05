@@ -239,11 +239,12 @@
         <div class="chartcard">
           <div>
             <div class="head">
-              <div><div class="big-num num" id="planTotal">0.00</div><small class="muted">Planned payments, rest of <span id="yr"></span></small></div>
+              <div><div class="big-num num" id="planTotal">0.00</div><small class="muted" id="planSub">Debits this month</small></div>
               <div class="legend">
                 <span style="--c:var(--lime)">Regular</span><span style="--c:var(--yellow)">One-time</span><span style="--c:var(--orange)">KOKO</span>
               </div>
             </div>
+            <div class="muted" style="font-size:12px;margin-top:4px">Planned payments, rest of <span id="yr"></span></div>
             <div class="chart">
               <div class="yaxis" id="yaxis"></div>
               <div class="plot" id="plot"></div>
@@ -436,6 +437,10 @@ function render() {
   const d = on.reduce((s, r) => s + r.debit, 0), c = on.reduce((s, r) => s + r.credit, 0);
   $("td").textContent = fmt(d); $("tc").textContent = fmt(c); $("tn").textContent = fmt(c - d);
   $("tn").className = "kpi-num num " + (c - d >= 0 ? "credit" : "debit");
+  const now = new Date();
+  const monthDebit = on.reduce((s, r) => { const d = parseStmtDate(r.date); return d && d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() ? s + r.debit : s; }, 0);
+  $("planTotal").textContent = fmt(monthDebit);
+  $("planSub").textContent = `Debits in ${MON[now.getMonth()]} ${now.getFullYear()}` + (rows.length ? "" : " · upload a statement");
   const nd = on.filter(r => r.debit).length, nc = on.filter(r => r.credit).length;
   if (rows.length) {
     $("dd").textContent = `${nd} debits counted`; $("dc").textContent = `${nc} credits counted`;
@@ -567,7 +572,6 @@ function renderItems() {
   const all = months.flatMap(m => m.list).filter(e => !e.s.skip);
   const total = all.reduce((t, e) => t + e.it.amount, 0);
   const paid = all.filter(e => e.s.paid).reduce((t, e) => t + e.it.amount, 0);
-  $("planTotal").textContent = fmt(total);
 
   // chart
   const rawMax = Math.max(1, ...months.map(m => m.total));

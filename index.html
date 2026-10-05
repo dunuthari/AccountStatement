@@ -92,9 +92,9 @@
   .legend { display:flex; gap:14px; flex-wrap:wrap; font-size:12px; font-weight:600; }
   .legend span::before { content:""; display:inline-block; width:9px; height:9px; border-radius:2px; margin-right:6px; background:var(--c); }
   .chart { display:grid; grid-template-columns:44px minmax(0,1fr); margin-top:6px; }
-  .yaxis { position:relative; height:270px; color:var(--muted); font-size:11.5px; }
+  .yaxis { position:relative; height:var(--ph,270px); color:var(--muted); font-size:11.5px; }
   .yaxis span { position:absolute; right:10px; transform:translateY(50%); }
-  .plot { position:relative; height:270px; }
+  .plot { position:relative; height:var(--ph,270px); }
   .gl { position:absolute; left:0; right:0; border-top:1px solid var(--line); }
   .cols { position:absolute; inset:0; display:grid; gap:8px; }
   .col { position:relative; display:flex; flex-direction:column; justify-content:flex-end; cursor:pointer; outline-offset:-2px; border-radius:10px; }
@@ -129,6 +129,8 @@
   .drop svg { width:26px; height:26px; stroke:#fff; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
   .drop small { font-weight:500; opacity:.9; }
   #file { display:none; }
+  .mob { display:none; }
+  * { -webkit-tap-highlight-color:transparent; } button, a, label, input { touch-action:manipulation; }
   #msg { margin-top:10px; font-size:12.5px; font-weight:600; min-height:18px; }
 
   /* list rows (next due / plan) */
@@ -193,16 +195,65 @@
     .a-side { flex-direction:row; flex-wrap:wrap; } .a-side > * { flex:1 1 300px; }
   }
   @media (max-width:860px) {
-    .app { grid-template-columns:1fr; padding:12px; }
-    aside { position:static; height:auto; min-height:0; flex-direction:row; align-items:center; padding:10px; border-radius:18px; overflow-x:auto; }
-    .logo { padding:0 8px; } nav { flex-direction:row; } nav a { padding:9px 12px; white-space:nowrap; } nav a span { display:inline; }
-    nav a.on::before, .privacy { display:none; }
-    .grid { grid-template-columns:minmax(0,1fr); grid-template-areas:"chart" "side" "limit" "pair" "plan" "stmt"; }
-    .a-pair { grid-template-columns:minmax(0,1fr); }
-    .chartcard { grid-template-columns:1fr; } .kpis { flex-direction:row; flex-wrap:wrap; gap:18px; }
-    .a-side { flex-direction:column; } .a-side > * { flex:none; width:100%; }
-    .card { padding:16px; } .big-num { font-size:30px; }
-    .topbar .btn.big span { display:none; }
+    :root { --ph:210px; }
+    .app { grid-template-columns:minmax(0,1fr); padding:12px 12px calc(92px + env(safe-area-inset-bottom, 0px)); gap:12px; }
+    main, .grid { gap:12px; }
+    /* bottom tab bar */
+    aside { position:fixed; left:0; right:0; bottom:0; top:auto; z-index:20; height:auto; min-height:0; flex-direction:row; justify-content:space-around; gap:0;
+            padding:6px 6px calc(6px + env(safe-area-inset-bottom, 0px)); border-radius:20px 20px 0 0; box-shadow:0 -6px 24px rgba(0,0,0,.12); }
+    .logo, .privacy { display:none; }
+    nav { flex-direction:row; width:100%; justify-content:space-around; gap:2px; }
+    nav a { flex:1; flex-direction:column; gap:3px; padding:8px 2px; border-radius:12px; font-size:11px; min-height:52px; justify-content:center; text-align:center; }
+    nav a.on { box-shadow:none; background:var(--soft); }
+    nav a.on::before { display:none; }
+    nav a span { display:block; }
+    .grid { grid-template-columns:minmax(0,1fr); grid-template-areas:"side" "chart" "limit" "pair" "plan" "stmt"; }
+    .a-pair { grid-template-columns:minmax(0,1fr); gap:12px; }
+    .a-side { flex-direction:column; gap:12px; } .a-side > * { flex:none; width:100%; }
+    .card { padding:16px; border-radius:20px; }
+    .head { margin-bottom:12px; }
+    .big-num { font-size:30px; }
+    .topbar .btn.big span { display:none; } .topbar .btn.big { width:48px; padding:0; justify-content:center; }
+    .search { max-width:none; } .spacer { display:none; }
+    /* upload card: compact */
+    .drop { min-height:96px; padding:12px; } .dsk { display:none; } .mob { display:inline; }
+    /* chart + totals */
+    .chartcard { grid-template-columns:minmax(0,1fr); gap:14px; }
+    .kpis { order:-1; display:grid; grid-template-columns:1fr 1fr; gap:12px 16px; padding:0 0 14px; border-bottom:1px solid var(--line); }
+    .kpis > div:last-child { grid-column:1 / -1; }
+    .kpi-num { font-size:24px; }
+    .chart { grid-template-columns:34px minmax(0,1fr); }
+    .tip { width:176px; }
+    .legend { font-size:11.5px; gap:10px; }
+    /* touch-size controls */
+    .btn { height:44px; border-radius:12px; padding:0 16px; font-size:14px; }
+    .btn.sm { height:38px; padding:0 14px; font-size:13px; border-radius:10px; }
+    .item .actions { gap:8px; } .item .actions a.btn { display:inline-flex; }
+    .form { grid-template-columns:minmax(0,1fr); padding:12px; }
+    .form input, .form select { font-size:16px; padding:11px 12px; border-radius:12px; }
+    .form .btns .btn { flex:1; justify-content:center; }
+    .search input { font-size:16px; }
+    .sw { width:52px !important; height:32px; } td.act { padding:0; } .sw::after { width:26px; height:26px; top:3px; left:3px; } .sw:checked::after { transform:translateX(20px); }
+    .items { max-height:none; overflow:visible; }
+    /* plan: tighter month cards, easy tap buttons */
+    .mon { padding:12px 14px; }
+    .mon .acts { gap:8px; }
+    .mon .row { align-items:flex-start; }
+    .mon .row .r { padding-top:4px; }
+    .row .t b { white-space:normal; }
+    /* statement table becomes a list of cards */
+    .tablewrap { overflow:visible; }
+    table, tbody, tr, td { display:block; } table { min-width:0; } thead { display:none; }
+    tr { display:grid; grid-template-columns:minmax(0,1fr) auto; column-gap:12px; row-gap:2px; padding:12px 0; border-bottom:1px solid var(--line); }
+    td { padding:0; border:0; }
+    td:nth-child(3) { grid-area:1 / 1; font-weight:600; overflow-wrap:anywhere; align-self:center; }
+    td:nth-child(6) { grid-area:1 / 2; align-self:center; justify-self:end; }
+    td:nth-child(1) { grid-area:2 / 1; color:var(--muted); font-size:12px; }
+    td:nth-child(2) { grid-area:3 / 1; color:var(--muted); font-size:12px; }
+    td:nth-child(4), td:nth-child(5) { display:none; }
+    td.debit:not(:empty), td.credit:not(:empty) { display:block; grid-area:2 / 2; text-align:right; font-weight:700; font-size:15px; }
+    tr.off td:not(.act) { opacity:.38; }
+    .tools .btn { flex:1; justify-content:center; }
   }
   @media (prefers-reduced-motion: reduce) { html { scroll-behavior:auto; } * { transition:none !important; } }
 </style>
@@ -264,7 +315,7 @@
           <div class="head"><div><h2>Statement</h2><small>PDF, text-based</small></div></div>
           <label class="drop" id="drop" for="file">
             <svg viewBox="0 0 24 24"><path d="M7 3h8l4 4v14H7z"/><path d="M15 3v4h4M12 17v-6M9 14l3-3 3 3"/></svg>
-            <span>Drop your statement PDF or click</span><small>Processed in your browser</small>
+            <span><span class="dsk">Drop your statement PDF or click</span><span class="mob">Tap to choose your statement PDF</span></span><small>Processed in your browser</small>
           </label>
           <input id="file" type="file" accept="application/pdf">
           <div id="msg"></div>
@@ -574,13 +625,14 @@ function renderItems() {
   const paid = all.filter(e => e.s.paid).reduce((t, e) => t + e.it.amount, 0);
 
   // chart
+  const H = $("plot").clientHeight || 270;
   const rawMax = Math.max(1, ...months.map(m => m.total));
   const pow = Math.pow(10, Math.floor(Math.log10(rawMax)));
   const max = Math.ceil(rawMax / pow * 2) / 2 * pow;       // nice ceiling (steps of 0.5 × 10^n)
   $("yaxis").innerHTML = [0, .5, 1].map(f => `<span style="bottom:${f * 100}%">${compact(max * f)}</span>`).join("");
   $("plot").innerHTML = [0, .5, 1].map(f => `<div class="gl" style="bottom:${f * 100}%"></div>`).join("") + `<div class="cols" style="grid-template-columns:repeat(${MONTHS_LEFT},minmax(0,1fr))">` + months.map((mo, k) => {
-    const seg = c => mo.by[c] ? `<div class="seg ${c}" style="height:${Math.max(4, mo.by[c] / max * 270)}px"></div>` : "";
-    const tip = k === selMonth ? `<div class="tip ${k > MONTHS_LEFT - 3 ? "r" : ""}" style="bottom:${Math.min(Math.max(mo.total / max * 270 - 40, 0), 150)}px">
+    const seg = c => mo.by[c] ? `<div class="seg ${c}" style="height:${Math.max(4, mo.by[c] / max * H)}px"></div>` : "";
+    const tip = k === selMonth ? `<div class="tip ${k > MONTHS_LEFT - 3 ? "r" : ""}" style="bottom:${Math.min(Math.max(mo.total / max * H - 40, 0), H - 120)}px">
       <b>${MON[mo.m]} ${mo.y}</b>${["reg","one","koko"].map(c => `<div style="--c:${COLOR[c]}"><span>${LABEL[c]}</span><span>${fmt(mo.by[c])}</span></div>`).join("")}</div>` : "";
     return `<div class="col ${k === selMonth ? "sel" : ""} ${mo.total ? "" : "empty"}" data-m="${k}" tabindex="0" role="button" aria-label="${MON[mo.m]} ${mo.y}: ${fmt(mo.total)} planned">
       ${tip}<div class="stack">${seg("reg")}${seg("one")}${seg("koko")}</div></div>`;
@@ -683,6 +735,7 @@ function markNav() {
 }
 addEventListener("scroll", markNav, { passive:true }); markNav();
 
+let rz; addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(renderItems, 150); });
 render(); renderItems();
 </script>
 </body>

@@ -66,6 +66,8 @@
   .btn:hover { border-color:var(--muted); }
   .btn.big { height:48px; border-radius:14px; padding:0 18px; font-size:14px; }
   .btn.dark { background:var(--ink); color:var(--card); border-color:var(--ink); }
+  .btn.accent { background:linear-gradient(135deg,var(--lime),var(--lime-d)); border-color:transparent; color:#111; }
+  .btn.accent:hover { filter:brightness(1.05); border-color:transparent; }
   .btn.sm { height:28px; padding:0 10px; font-size:12px; border-radius:9px; }
   .btn svg { width:16px; height:16px; stroke:currentColor; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
   :focus-visible { outline:2px solid var(--ink); outline-offset:2px; }
@@ -281,7 +283,7 @@
       <div class="a-pair">
       <section class="card a-reg" id="payments">
         <div class="head"><div><h2>Regular and one-time</h2><small>Gym, wifi, transport, insurance</small></div>
-          <button class="btn" id="mToggle" type="button">+ Add</button></div>
+          <button class="btn accent" id="mToggle" type="button">+ Add</button></div>
         <form class="form hidden" id="mForm">
           <label class="full">Name<input id="mName" required placeholder="Gym"></label>
           <label>Amount<input id="mAmt" type="number" step="0.01" min="0" required placeholder="5000"></label>
@@ -296,7 +298,7 @@
 
       <section class="card a-koko" id="koko">
         <div class="head"><div><h2>KOKO payments</h2><small>Same amount, same day each month</small></div>
-          <button class="btn" id="kToggle" type="button">+ Add</button></div>
+          <button class="btn accent" id="kToggle" type="button">+ Add</button></div>
         <form class="form hidden" id="kForm">
           <label class="full">Reason<input id="kName" required placeholder="Phone"></label>
           <label>Amount per payment<input id="kAmt" type="number" step="0.01" min="0" required placeholder="5000"></label>

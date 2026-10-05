@@ -4,140 +4,349 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Statement Calculator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap">
 <style>
-  :root { --bg:#f6f7f9; --card:#fff; --text:#1c2230; --muted:#6b7385; --line:#e3e6ec;
-          --debit:#c0392b; --credit:#1e8e5a; --accent:#2f5bea; }
-  @media (prefers-color-scheme: dark) {
-    :root { --bg:#14171e; --card:#1d212b; --text:#e8eaf0; --muted:#8c93a6; --line:#2d3342;
-            --debit:#ff7a6b; --credit:#4cc88a; --accent:#6b8cff; }
+  /* Layout: sidebar + dashboard grid of rounded white cards on a light grey ground.
+     Palette: ink black, grey labels, lime (regular), yellow (one-time), orange (KOKO). */
+  :root {
+    --bg:#ececec; --card:#ffffff; --ink:#111111; --muted:#8b8b8b; --line:#efefef; --soft:#f4f4f4; --ghost:#e9e9e9;
+    --lime:#9acd4b; --lime-d:#7db530; --yellow:#f6f04e; --orange:#ffae63; --red:#e0603a; --green:#5aa02c;
+    --shadow:0 8px 28px rgba(0,0,0,.10); --on-lime:#ffffff;
+    --font:"Manrope", system-ui, -apple-system, "Segoe UI", sans-serif;
   }
-  * { box-sizing:border-box; }
-  body { margin:0; background:var(--bg); color:var(--text); font:15px/1.4 system-ui,sans-serif; }
-  main { max-width:1100px; margin:0 auto; padding:24px 16px 48px; }
-  h1 { font-size:22px; margin:0 0 4px; }
-  p.sub { color:var(--muted); margin:0 0 20px; }
-  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px; margin-bottom:16px; }
-  #drop { border:2px dashed var(--line); text-align:center; padding:28px 12px; cursor:pointer; border-radius:10px; }
-  #drop.over { border-color:var(--accent); }
-  #drop input { display:none; }
-  .totals { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; }
-  .tot { padding:12px; border:1px solid var(--line); border-radius:8px; }
-  .tot small { color:var(--muted); display:block; }
-  .tot b { font-size:22px; font-variant-numeric:tabular-nums; }
-  .debit { color:var(--debit); } .credit { color:var(--credit); }
-  .tablewrap { overflow-x:auto; }
-  table { width:100%; border-collapse:collapse; }
-  th,td { padding:8px 10px; border-bottom:1px solid var(--line); text-align:left; }
-  th.num,td.num { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
-  tr.off td:not(.act) { opacity:.4; text-decoration:line-through; }
-  button { font:inherit; cursor:pointer; border:1px solid var(--line); background:var(--card); color:var(--text);
-           border-radius:6px; padding:4px 10px; }
-  button:hover { border-color:var(--accent); }
-  .toolbar { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; align-items:center; }
-  #msg { color:var(--muted); margin-top:8px; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+    --bg:#111111; --card:#1b1b1b; --ink:#f3f3f3; --muted:#8f8f8f; --line:#262626; --soft:#242424; --ghost:#2b2b2b;
+    --lime:#a6d85a; --lime-d:#86bb3a; --yellow:#f0e94a; --orange:#ffae63; --red:#ff8a63; --green:#8fd45a;
+    --shadow:0 8px 28px rgba(0,0,0,.5); color-scheme:dark; } }
+  :root[data-theme="dark"] {
+    --bg:#111111; --card:#1b1b1b; --ink:#f3f3f3; --muted:#8f8f8f; --line:#262626; --soft:#242424; --ghost:#2b2b2b;
+    --lime:#a6d85a; --lime-d:#86bb3a; --yellow:#f0e94a; --orange:#ffae63; --red:#ff8a63; --green:#8fd45a;
+    --shadow:0 8px 28px rgba(0,0,0,.5); color-scheme:dark; }
 
-  .planner h2 { font-size:17px; margin:0 0 12px; }
-  .form { display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:8px; margin-bottom:14px; align-items:end; }
-  .form label { display:flex; flex-direction:column; font-size:12px; color:var(--muted); gap:3px; }
-  input, select { font:inherit; padding:6px 8px; border:1px solid var(--line); border-radius:6px; background:var(--bg); color:var(--text); min-width:0; }
-  .item { border:1px solid var(--line); border-radius:8px; padding:10px 12px; margin-bottom:10px; }
-  .item header { display:flex; justify-content:space-between; gap:8px; flex-wrap:wrap; align-items:baseline; }
-  .item .meta { color:var(--muted); font-size:13px; }
-  .occ { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
-  .chip { border:1px solid var(--line); border-radius:999px; padding:3px 10px; font-size:13px; }
-  .chip.paid { border-color:var(--credit); color:var(--credit); }
-  .chip.overdue { border-color:var(--debit); color:var(--debit); }
-  .chip.soon { border-color:var(--accent); color:var(--accent); }
-  .links { display:flex; gap:10px; margin-top:8px; font-size:13px; flex-wrap:wrap; }
-  a { color:var(--accent); }
-  .note { color:var(--muted); font-size:13px; margin:8px 0 0; }
-  .chk { flex-direction:row !important; align-items:center; gap:8px !important; }
-  .chk input { width:auto; }
-  .month { margin-top:14px; }
-  .month h3 { font-size:15px; margin:0 0 6px; display:flex; justify-content:space-between; gap:8px; flex-wrap:wrap; }
-  tr.skip td:not(.act) { opacity:.4; text-decoration:line-through; }
-  .st-paid { color:var(--credit); } .st-overdue { color:var(--debit); } .st-soon { color:var(--accent); }
-  .hidden { display:none; }
+  * { box-sizing:border-box; }
+  html { scroll-behavior:smooth; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:14px/1.45 var(--font); }
+  button, input, select { font:inherit; color:inherit; }
+  h1,h2,h3,p { margin:0; }
+  .num { font-variant-numeric:tabular-nums; }
+  .muted { color:var(--muted); }
+  .hidden { display:none !important; }
+
+  .app { display:grid; grid-template-columns:240px minmax(0,1fr); gap:16px; padding:16px; max-width:1560px; margin:0 auto; }
+
+  /* ---------- sidebar ---------- */
+  aside { position:sticky; top:16px; align-self:start; height:calc(100vh - 32px); min-height:560px; background:var(--card);
+          border-radius:22px; padding:22px 16px; display:flex; flex-direction:column; gap:6px; }
+  .logo { font-weight:800; font-size:20px; letter-spacing:.04em; padding:0 10px 18px; display:flex; align-items:center; gap:10px; }
+  .logo i { width:22px; height:22px; border-radius:7px; background:linear-gradient(135deg,var(--lime),var(--lime-d)); display:inline-block; }
+  nav { display:flex; flex-direction:column; gap:4px; }
+  nav a { display:flex; align-items:center; gap:12px; padding:12px 14px; border-radius:14px; color:var(--ink); text-decoration:none;
+          font-weight:600; position:relative; }
+  nav a svg { width:20px; height:20px; flex:none; stroke:currentColor; fill:none; stroke-width:1.6; stroke-linecap:round; stroke-linejoin:round; }
+  nav a:hover { background:var(--soft); }
+  nav a.on { background:var(--soft); box-shadow:0 4px 14px rgba(0,0,0,.06); }
+  nav a.on::before { content:""; position:absolute; left:-16px; top:12px; bottom:12px; width:3px; border-radius:3px; background:var(--ink); }
+  .privacy { margin-top:auto; border:1px solid var(--line); border-radius:18px; padding:14px; box-shadow:var(--shadow); }
+  .privacy .bolt { width:34px; height:34px; border-radius:50%; background:var(--ink); display:grid; place-items:center; margin-bottom:10px; }
+  .privacy .bolt svg { width:18px; height:18px; stroke:var(--card); fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+  .privacy b { font-size:16px; display:block; margin-bottom:4px; }
+  .privacy p { color:var(--muted); font-size:12.5px; }
+
+  /* ---------- top bar ---------- */
+  main { min-width:0; display:flex; flex-direction:column; gap:16px; }
+  .topbar { display:flex; gap:12px; align-items:center; }
+  .search { flex:1; max-width:520px; display:flex; align-items:center; gap:10px; background:var(--card); border-radius:14px; padding:0 16px; height:48px; }
+  .search svg { width:18px; height:18px; stroke:var(--muted); fill:none; stroke-width:1.8; stroke-linecap:round; flex:none; }
+  .search input { border:0; background:transparent; outline:0; width:100%; height:100%; }
+  .search input::placeholder { color:var(--muted); }
+  .spacer { flex:1; }
+  .btn { color:var(--ink); text-decoration:none; display:inline-flex; align-items:center; gap:8px; background:var(--card); border:1px solid var(--line); border-radius:12px; padding:0 14px; height:36px;
+         cursor:pointer; font-weight:600; font-size:13px; white-space:nowrap; }
+  .btn:hover { border-color:var(--muted); }
+  .btn.big { height:48px; border-radius:14px; padding:0 18px; font-size:14px; }
+  .btn.dark { background:var(--ink); color:var(--card); border-color:var(--ink); }
+  .btn.sm { height:28px; padding:0 10px; font-size:12px; border-radius:9px; }
+  .btn svg { width:16px; height:16px; stroke:currentColor; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+  :focus-visible { outline:2px solid var(--ink); outline-offset:2px; }
+
+  /* ---------- grid ---------- */
+  .grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr) 340px; gap:16px;
+          grid-template-areas:"chart chart side" "limit limit side" "reg koko mix" "plan plan plan" "stmt stmt stmt"; }
+  .card { background:var(--card); border-radius:22px; padding:22px; min-width:0; scroll-margin-top:16px; }
+  .a-chart { grid-area:chart; } .a-side { grid-area:side; display:flex; flex-direction:column; gap:16px; } .a-limit { grid-area:limit; }
+  .a-reg { grid-area:reg; } .a-koko { grid-area:koko; } .a-mix { grid-area:mix; } .a-plan { grid-area:plan; } .a-stmt { grid-area:stmt; }
+  .head { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; margin-bottom:14px; flex-wrap:wrap; }
+  .grow { flex:1; }
+  .head > div { min-width:0; }
+  .head h2 { font-size:17px; font-weight:700; letter-spacing:-.01em; }
+  .head small { display:block; color:var(--muted); font-size:12px; font-weight:500; }
+  .big-num { font-size:36px; font-weight:700; letter-spacing:-.03em; line-height:1.1; }
+  .kpi-num { font-size:30px; font-weight:700; letter-spacing:-.03em; line-height:1.15; }
+
+  /* chart card */
+  .chartcard { display:grid; grid-template-columns:minmax(0,1fr) 190px; gap:24px; }
+  .legend { display:flex; gap:14px; flex-wrap:wrap; font-size:12px; font-weight:600; }
+  .legend span::before { content:""; display:inline-block; width:9px; height:9px; border-radius:2px; margin-right:6px; background:var(--c); }
+  .chart { display:grid; grid-template-columns:44px minmax(0,1fr); margin-top:6px; }
+  .yaxis { position:relative; height:270px; color:var(--muted); font-size:11.5px; }
+  .yaxis span { position:absolute; right:10px; transform:translateY(50%); }
+  .plot { position:relative; height:270px; }
+  .gl { position:absolute; left:0; right:0; border-top:1px solid var(--line); }
+  .cols { position:absolute; inset:0; display:grid; grid-template-columns:repeat(12,minmax(0,1fr)); gap:8px; }
+  .col { position:relative; display:flex; flex-direction:column; justify-content:flex-end; cursor:pointer; outline-offset:-2px; border-radius:10px; }
+  .stack { width:100%; max-width:44px; margin:0 auto; display:flex; flex-direction:column-reverse; gap:3px; }
+  .seg { width:100%; border-radius:7px; background:var(--ghost); min-height:4px; transition:background .15s; }
+  .col.sel .seg.reg { background:linear-gradient(180deg,var(--lime),var(--lime-d)); }
+  .col.sel .seg.one { background:var(--yellow); }
+  .col.sel .seg.koko { background:var(--orange); }
+  .col.empty .stack { height:4px; background:var(--ghost); border-radius:4px; }
+  .xlabels { grid-column:2; display:grid; grid-template-columns:repeat(12,minmax(0,1fr)); gap:8px; margin-top:8px; text-align:center; color:var(--muted); font-size:12px; }
+  .xlabels .sel { color:var(--ink); font-weight:700; }
+  .tip { position:absolute; z-index:3; width:196px; background:var(--card); border-radius:12px; padding:10px 12px; box-shadow:var(--shadow); font-size:12px;
+         left:calc(50% + 26px); pointer-events:none; }
+  .tip.r { left:auto; right:calc(50% + 26px); }
+  .tip b { display:block; color:var(--muted); font-weight:500; margin-bottom:6px; }
+  .tip div { display:flex; justify-content:space-between; gap:8px; margin-top:3px; font-weight:600; }
+  .tip div span:first-child { white-space:nowrap; }
+  .tip div span::before { content:""; display:inline-block; width:7px; height:7px; border-radius:50%; margin-right:6px; background:var(--c); }
+  .kpis { display:flex; flex-direction:column; gap:22px; padding-top:6px; }
+  .kpis small { color:var(--muted); font-size:12px; display:block; margin-bottom:2px; }
+  .delta { font-size:12px; color:var(--muted); }
+  .delta.up { color:var(--green); } .delta.down { color:var(--red); }
+
+  /* upload card (the green "card") */
+  .upload { background:linear-gradient(135deg,var(--lime),var(--lime-d)); color:#fff; position:relative; overflow:hidden; }
+  .upload::after { content:""; position:absolute; inset:0; background:repeating-linear-gradient(135deg,rgba(255,255,255,.14) 0 2px,transparent 2px 7px); pointer-events:none; }
+  .upload > * { position:relative; z-index:1; }
+  .upload .head h2 { color:#fff; } .upload .head small { color:rgba(255,255,255,.8); }
+  .drop { display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:8px; min-height:132px; padding:16px;
+          border:2px dashed rgba(255,255,255,.7); border-radius:16px; cursor:pointer; font-weight:600; }
+  .drop.over { background:rgba(255,255,255,.18); }
+  .drop svg { width:26px; height:26px; stroke:#fff; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+  .drop small { font-weight:500; opacity:.9; }
+  #file { display:none; }
+  #msg { margin-top:10px; font-size:12.5px; font-weight:600; min-height:18px; }
+
+  /* list rows (next due / plan) */
+  .list { display:flex; flex-direction:column; }
+  .row { display:flex; align-items:center; gap:12px; padding:10px 0; }
+  .badge { width:38px; height:38px; border-radius:12px; display:grid; place-items:center; font-weight:800; color:#111; flex:none; background:var(--c); }
+  .row .t { flex:1; min-width:0; } .row .t b { display:block; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .row .t small { color:var(--muted); font-size:12px; }
+  .row .r { text-align:right; font-weight:700; white-space:nowrap; } .row .r small { display:block; font-weight:500; font-size:12px; }
+  .st-paid { color:var(--green); } .st-overdue { color:var(--red); } .st-soon { color:#d9822b; }
+
+  /* progress bars */
+  .bar { height:30px; border-radius:8px; background:var(--soft); overflow:hidden; }
+  .bar i { display:block; height:100%; border-radius:8px; background:repeating-linear-gradient(135deg,rgba(255,255,255,.28) 0 2px,transparent 2px 6px),linear-gradient(90deg,var(--lime),var(--lime-d)); }
+  .bar.org i { background:repeating-linear-gradient(135deg,rgba(255,255,255,.35) 0 2px,transparent 2px 6px),var(--orange); }
+  .bar.thin { height:12px; border-radius:6px; } .bar.thin i { border-radius:6px; }
+  .barlabels { display:flex; justify-content:space-between; margin-top:8px; font-size:12.5px; color:var(--muted); }
+  .barlabels b { color:var(--ink); }
+
+  /* item cards (regular / koko) */
+  .items { display:flex; flex-direction:column; gap:14px; max-height:380px; overflow:auto; }
+  .item .top { display:flex; justify-content:space-between; gap:8px; align-items:baseline; }
+  .item .top b { font-weight:700; } .item .sub { color:var(--muted); font-size:12px; margin:2px 0 8px; }
+  .item .actions { display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
+  .item .actions a.btn { text-decoration:none; }
+  .empty { color:var(--muted); padding:18px; border:1px dashed var(--line); border-radius:14px; text-align:center; font-size:13px; }
+
+  /* forms */
+  .form { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:16px; padding:14px; background:var(--soft); border-radius:16px; }
+  .form label { display:flex; flex-direction:column; gap:4px; font-size:12px; color:var(--muted); font-weight:600; min-width:0; }
+  .form .full { grid-column:1 / -1; }
+  .form input, .form select { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:8px 10px; color:var(--ink); min-width:0; width:100%; }
+  .form .btns { grid-column:1 / -1; display:flex; gap:8px; }
+  .chk { flex-direction:row !important; align-items:center; justify-content:space-between; gap:12px !important; color:var(--ink) !important; }
+  .sw { appearance:none; width:38px !important; height:22px; border-radius:999px !important; padding:0 !important; background:var(--ghost) !important; border:0 !important; position:relative; cursor:pointer; flex:none; transition:background .15s; }
+  .sw::after { content:""; position:absolute; top:3px; left:3px; width:16px; height:16px; border-radius:50%; background:#fff; transition:transform .15s; box-shadow:0 1px 3px rgba(0,0,0,.3); }
+  .sw:checked { background:linear-gradient(90deg,var(--lime),var(--lime-d)) !important; } .sw:checked::after { transform:translateX(16px); }
+
+  /* mix card */
+  .donutwrap { display:grid; place-items:center; margin:4px 0 14px; }
+  .donut { width:168px; height:168px; border-radius:50%; display:grid; place-items:center; background:conic-gradient(var(--lime-d) 0 var(--p,0%), var(--soft) var(--p,0%) 100%); }
+  .donut div { width:120px; height:120px; border-radius:50%; background:var(--card); display:grid; place-items:center; text-align:center; }
+  .donut b { font-size:28px; letter-spacing:-.03em; display:block; line-height:1; } .donut small { color:var(--muted); font-size:12px; }
+  .seg3 { display:flex; height:14px; gap:3px; margin-bottom:12px; } .seg3 i { border-radius:5px; background:var(--c); }
+  .mixrow { display:flex; justify-content:space-between; padding:3px 0; font-size:13px; }
+  .mixrow span::before { content:""; display:inline-block; width:9px; height:9px; border-radius:2px; margin-right:8px; background:var(--c); }
+
+  /* plan */
+  .months { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:14px; }
+  .mon { background:var(--soft); border-radius:18px; padding:14px 16px; }
+  .mon h3 { display:flex; justify-content:space-between; font-size:14px; font-weight:700; margin-bottom:6px; }
+  .pill { background:var(--card); border-radius:999px; padding:2px 10px; font-size:12px; font-weight:700; }
+  .mon .row { padding:8px 0; border-top:1px solid var(--line); gap:10px; }
+  .mon .row.skip .t, .mon .row.skip .r b { opacity:.4; text-decoration:line-through; }
+  .mon .badge { width:30px; height:30px; border-radius:9px; font-size:12px; }
+  .mon .acts { display:flex; gap:4px; margin-top:4px; justify-content:flex-end; }
+
+  /* statement table */
+  .tools { display:flex; gap:8px; flex-wrap:wrap; }
+  .tablewrap { overflow-x:auto; }
+  table { width:100%; border-collapse:collapse; min-width:680px; }
+  th { text-align:left; color:var(--muted); font-weight:600; font-size:12px; padding:8px 10px; border-bottom:1px solid var(--line); }
+  td { padding:11px 10px; border-bottom:1px solid var(--line); }
+  th.r, td.r { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+  tr.off td:not(.act) { opacity:.38; text-decoration:line-through; }
+  td.act { text-align:right; }
+  .debit { color:var(--red); } .credit { color:var(--green); }
+
+  @media (max-width:1180px) {
+    .grid { grid-template-columns:minmax(0,1fr) minmax(0,1fr); grid-template-areas:"chart chart" "side side" "limit limit" "reg koko" "mix mix" "plan plan" "stmt stmt"; }
+    .a-side { flex-direction:row; flex-wrap:wrap; } .a-side > * { flex:1 1 300px; }
+  }
+  @media (max-width:860px) {
+    .app { grid-template-columns:1fr; padding:12px; }
+    aside { position:static; height:auto; min-height:0; flex-direction:row; align-items:center; padding:10px; border-radius:18px; overflow-x:auto; }
+    .logo { padding:0 8px; } nav { flex-direction:row; } nav a { padding:9px 12px; white-space:nowrap; } nav a span { display:inline; }
+    nav a.on::before, .privacy { display:none; }
+    .grid { grid-template-columns:minmax(0,1fr); grid-template-areas:"chart" "side" "limit" "reg" "koko" "mix" "plan" "stmt"; }
+    .chartcard { grid-template-columns:1fr; } .kpis { flex-direction:row; flex-wrap:wrap; gap:18px; }
+    .a-side { flex-direction:column; } .a-side > * { flex:none; width:100%; }
+    .card { padding:16px; } .big-num { font-size:30px; }
+    .topbar .btn.big span { display:none; }
+  }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior:auto; } * { transition:none !important; } }
 </style>
 </head>
 <body>
-<main>
-  <h1>Statement Calculator</h1>
-  <p class="sub">Upload a text-based bank statement PDF. It is processed in your browser only; nothing is uploaded.</p>
-
-  <label id="drop" class="card" style="display:block">
-    <input id="file" type="file" accept="application/pdf">
-    <strong>Click or drop your statement PDF here</strong>
-    <div id="msg"></div>
-  </label>
-
-  <section id="result" class="hidden">
-    <div class="card totals">
-      <div class="tot"><small>Total Debits</small><b class="debit" id="td">0.00</b></div>
-      <div class="tot"><small>Total Credits</small><b class="credit" id="tc">0.00</b></div>
-      <div class="tot"><small>Net (Credits − Debits)</small><b id="tn">0.00</b></div>
-      <div class="tot"><small>Rows counted / ignored</small><b id="cnt">0 / 0</b></div>
+<div class="app">
+  <aside>
+    <div class="logo"><i></i>STATEMENT</div>
+    <nav id="nav">
+      <a href="#top" class="on"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></svg><span>Dashboard</span></a>
+      <a href="#statement"><svg viewBox="0 0 24 24"><path d="M7 3h8l4 4v14H7z"/><path d="M15 3v4h4M10 12h6M10 16h6"/></svg><span>Statement</span></a>
+      <a href="#payments"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10"/></svg><span>Payments</span></a>
+      <a href="#koko"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="3"/><path d="M3 10h18"/></svg><span>KOKO</span></a>
+      <a href="#plan"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4M3 10h18"/></svg><span>12-month plan</span></a>
+    </nav>
+    <div class="privacy">
+      <div class="bolt"><svg viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/></svg></div>
+      <b>Stays on your device</b>
+      <p>Your PDF is read in this browser. Nothing is uploaded.</p>
     </div>
-    <div class="card">
-      <div class="toolbar">
-        <button id="enableAll">Enable all</button>
-        <button id="ignoreAll">Ignore all</button>
-      </div>
-      <div class="tablewrap">
-        <table>
-          <thead><tr><th>Date</th><th>Ref. No</th><th>Particulars</th><th class="num">Debits</th><th class="num">Credits</th><th></th></tr></thead>
-          <tbody id="rows"></tbody>
-        </table>
-      </div>
+  </aside>
+
+  <main id="top">
+    <div class="topbar">
+      <label class="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
+        <input id="q" type="search" placeholder="Search transactions"></label>
+      <div class="spacer"></div>
+      <label class="btn big dark" for="file"><svg viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5M4 20h16"/></svg><span>Upload statement</span></label>
     </div>
-  </section>
 
-  <section class="card planner" id="monthlySec">
-    <h2>Regular and one-time payments</h2>
-    <p class="note" style="margin-top:0">Turn on "Repeat every month" for bills like gym or wifi, and it is planned in every month of the year. Turn it off for a single payment in one month.</p>
-    <form class="form" id="mForm">
-      <label>Name<input id="mName" required placeholder="Gym"></label>
-      <label>Amount<input id="mAmt" type="number" step="0.01" min="0" required placeholder="5000"></label>
-      <label class="chk"><span>Repeat every month (whole year)</span><input id="mRepeat" type="checkbox" checked></label>
-      <label id="lMonth" class="hidden">Month<input id="mMonth" type="month"></label>
-      <label>Due day of month<input id="mDay" type="number" min="1" max="31" value="1" required></label>
-      <label>Statement text (optional)<input id="mMatch" placeholder="GYM"></label>
-      <button type="submit" id="mSave">Add</button>
-      <button type="button" id="mCancel" class="hidden">Cancel</button>
-    </form>
-    <div id="mItems"></div>
-  </section>
+    <div class="grid">
+      <!-- planned payments chart + statement totals -->
+      <section class="card a-chart">
+        <div class="chartcard">
+          <div>
+            <div class="head">
+              <div><div class="big-num num" id="planTotal">0.00</div><small class="muted">Planned payments, next 12 months</small></div>
+              <div class="legend">
+                <span style="--c:var(--lime)">Regular</span><span style="--c:var(--yellow)">One-time</span><span style="--c:var(--orange)">KOKO</span>
+              </div>
+            </div>
+            <div class="chart">
+              <div class="yaxis" id="yaxis"></div>
+              <div class="plot" id="plot"></div>
+              <div class="xlabels" id="xlabels"></div>
+            </div>
+          </div>
+          <div class="kpis">
+            <div><small>Total debits</small><div class="kpi-num num debit" id="td">0.00</div><div class="delta" id="dd">No statement yet</div></div>
+            <div><small>Total credits</small><div class="kpi-num num credit" id="tc">0.00</div><div class="delta" id="dc">&nbsp;</div></div>
+            <div><small>Net (credits − debits)</small><div class="kpi-num num" id="tn">0.00</div><div class="delta" id="dn">&nbsp;</div></div>
+          </div>
+        </div>
+      </section>
 
-  <section class="card planner" id="kokoSec">
-    <h2>KOKO payments</h2>
-    <p class="note" style="margin-top:0">The amount is charged on the payment date, then on the same day each month until the number of months is reached.</p>
-    <form class="form" id="kForm">
-      <label>Reason<input id="kName" required placeholder="Phone"></label>
-      <label>Amount per payment<input id="kAmt" type="number" step="0.01" min="0" required placeholder="5000"></label>
-      <label>Payment date<input id="kStart" type="date" required></label>
-      <label>No. of months<select id="kTerm"><option>3</option><option>4</option><option>6</option></select></label>
-      <button type="submit" id="kSave">Add</button>
-      <button type="button" id="kCancel" class="hidden">Cancel</button>
-    </form>
-    <div id="kItems"></div>
-  </section>
+      <div class="a-side">
+        <section class="card upload" id="uploadCard">
+          <div class="head"><div><h2>Statement</h2><small>PDF, text-based</small></div></div>
+          <label class="drop" id="drop" for="file">
+            <svg viewBox="0 0 24 24"><path d="M7 3h8l4 4v14H7z"/><path d="M15 3v4h4M12 17v-6M9 14l3-3 3 3"/></svg>
+            <span>Drop your statement PDF or click</span><small>Processed in your browser</small>
+          </label>
+          <input id="file" type="file" accept="application/pdf">
+          <div id="msg"></div>
+        </section>
+        <section class="card grow">
+          <div class="head"><div><h2>Next due</h2><small>Unpaid payments</small></div></div>
+          <div class="list" id="nextDue"></div>
+        </section>
+      </div>
 
-  <section class="card planner" id="planSec">
-    <h2>12-month plan</h2>
-    <div class="totals" id="planTotals"></div>
-    <div id="plan"></div>
-    <p class="note">A payment shows Paid automatically when your uploaded statement has a debit of the same amount near its date. Use Mark paid to set it yourself, or Skip to leave a payment out of the totals. Reminders: use "Add to Google Calendar" on an item for an email or phone notification.</p>
-  </section>
-</main>
+      <section class="card a-limit">
+        <div class="head"><div><h2>Payment progress</h2><small>Paid against everything planned</small></div></div>
+        <div class="bar"><i id="limitFill" style="width:0%"></i></div>
+        <div class="barlabels"><span>Paid <b class="num" id="paidAmt">0.00</b></span><span>Planned <b class="num" id="planAmt">0.00</b></span></div>
+      </section>
+
+      <section class="card a-reg" id="payments">
+        <div class="head"><div><h2>Regular and one-time</h2><small>Gym, wifi, transport, insurance</small></div>
+          <button class="btn" id="mToggle" type="button">+ Add</button></div>
+        <form class="form hidden" id="mForm">
+          <label class="full">Name<input id="mName" required placeholder="Gym"></label>
+          <label>Amount<input id="mAmt" type="number" step="0.01" min="0" required placeholder="5000"></label>
+          <label>Due day of month<input id="mDay" type="number" min="1" max="31" value="1" required></label>
+          <label class="full chk"><span>Repeat every month (whole year)</span><input id="mRepeat" class="sw" type="checkbox" checked></label>
+          <label class="full hidden" id="lMonth">Month<input id="mMonth" type="month"></label>
+          <label class="full">Statement text (optional)<input id="mMatch" placeholder="GYM"></label>
+          <div class="btns"><button class="btn dark" type="submit" id="mSave">Add</button><button class="btn" type="button" id="mCancel">Cancel</button></div>
+        </form>
+        <div class="items" id="mItems"></div>
+      </section>
+
+      <section class="card a-koko" id="koko">
+        <div class="head"><div><h2>KOKO payments</h2><small>Same amount, same day each month</small></div>
+          <button class="btn" id="kToggle" type="button">+ Add</button></div>
+        <form class="form hidden" id="kForm">
+          <label class="full">Reason<input id="kName" required placeholder="Phone"></label>
+          <label>Amount per payment<input id="kAmt" type="number" step="0.01" min="0" required placeholder="5000"></label>
+          <label>No. of months<select id="kTerm"><option>3</option><option>4</option><option>6</option></select></label>
+          <label class="full">Payment date<input id="kStart" type="date" required></label>
+          <div class="btns"><button class="btn dark" type="submit" id="kSave">Add</button><button class="btn" type="button" id="kCancel">Cancel</button></div>
+        </form>
+        <div class="items" id="kItems"></div>
+      </section>
+
+      <section class="card a-mix">
+        <div class="head"><div><h2>Plan overview</h2><small>Share of planned total</small></div></div>
+        <div class="donutwrap"><div class="donut" id="donut"><div><span><b id="donutPct">0%</b><small>paid</small></span></div></div></div>
+        <div class="seg3" id="seg3"></div>
+        <div id="mix"></div>
+      </section>
+
+      <section class="card a-plan" id="plan">
+        <div class="head"><div><h2>12-month plan</h2><small>Paid is matched from your statement. Mark paid or skip to override.</small></div></div>
+        <div class="months" id="months"></div>
+      </section>
+
+      <section class="card a-stmt" id="statement">
+        <div class="head"><div><h2>Statement transactions</h2><small id="stmtSub">Upload a statement to see transactions</small></div>
+          <div class="tools"><button class="btn" id="enableAll" type="button">Include all</button><button class="btn" id="ignoreAll" type="button">Ignore all</button></div></div>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Date</th><th>Ref. No</th><th>Particulars</th><th class="r">Debits</th><th class="r">Credits</th><th class="r">Include</th></tr></thead>
+            <tbody id="rows"></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
 
 <script type="module">
 import * as pdfjsLib from "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.min.mjs";
 pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.worker.min.mjs";
 
 const $ = id => document.getElementById(id);
+let rows = [];
 const AMOUNT = /^-?[\d,]+\.\d{2}(?:\s?(?:Cr|Dr))?$/i;
 const DATE = /^\d{1,2}[\/\-. ](?:\d{1,2}|[A-Za-z]{3})[\/\-. ]\d{2,4}$/;
-let rows = [];
 
 const toNum = s => parseFloat(s.replace(/[^\d.\-]/g, "")) || 0;
 const fmt = n => n.toLocaleString(undefined, { minimumFractionDigits:2, maximumFractionDigits:2 });
@@ -218,18 +427,30 @@ function parse(lines) {
   return result;
 }
 
+
+const compact = n => n >= 1e6 ? (n / 1e6).toFixed(1).replace(/\.0$/, "") + "M" : n >= 1e3 ? (n / 1e3).toFixed(1).replace(/\.0$/, "") + "k" : String(Math.round(n));
+
+// ---------- statement ----------
 function render() {
-  $("rows").innerHTML = rows.map((r, i) => `
+  const f = $("q").value.trim().toLowerCase();
+  const shown = rows.map((r, i) => ({ r, i })).filter(({ r }) => !f || (r.date + " " + r.ref + " " + r.particulars).toLowerCase().includes(f));
+  $("rows").innerHTML = shown.length ? shown.map(({ r, i }) => `
     <tr class="${r.on ? "" : "off"}">
       <td>${esc(r.date)}</td><td>${esc(r.ref)}</td><td>${esc(r.particulars)}</td>
-      <td class="num debit">${r.debit ? fmt(r.debit) : ""}</td>
-      <td class="num credit">${r.credit ? fmt(r.credit) : ""}</td>
-      <td class="act"><button data-i="${i}">${r.on ? "Ignore" : "Enable"}</button></td>
-    </tr>`).join("");
+      <td class="r debit">${r.debit ? fmt(r.debit) : ""}</td>
+      <td class="r credit">${r.credit ? fmt(r.credit) : ""}</td>
+      <td class="act"><input class="sw" type="checkbox" data-i="${i}" ${r.on ? "checked" : ""} aria-label="Include this transaction in totals"></td>
+    </tr>`).join("") : `<tr><td colspan="6" class="muted" style="padding:28px;text-align:center">${rows.length ? "No transactions match your search." : "No statement loaded yet."}</td></tr>`;
   const on = rows.filter(r => r.on);
   const d = on.reduce((s, r) => s + r.debit, 0), c = on.reduce((s, r) => s + r.credit, 0);
   $("td").textContent = fmt(d); $("tc").textContent = fmt(c); $("tn").textContent = fmt(c - d);
-  $("cnt").textContent = `${on.length} / ${rows.length - on.length}`;
+  $("tn").className = "kpi-num num " + (c - d >= 0 ? "credit" : "debit");
+  const nd = on.filter(r => r.debit).length, nc = on.filter(r => r.credit).length;
+  if (rows.length) {
+    $("dd").textContent = `${nd} debits counted`; $("dc").textContent = `${nc} credits counted`;
+    $("dn").textContent = `${rows.length - on.length} ignored`;
+    $("stmtSub").textContent = `${rows.length} transactions · ${on.length} counted, ${rows.length - on.length} ignored`;
+  }
 }
 
 async function handle(file) {
@@ -240,59 +461,52 @@ async function handle(file) {
     rows = parse(await readLines(pdf));
     if (!rows.length) throw new Error("No transactions found. The PDF may be scanned (image-only).");
     $("msg").textContent = `${file.name}: ${rows.length} transactions found.`;
-    $("result").classList.remove("hidden");
     render(); renderItems();
   } catch (e) {
     $("msg").textContent = "Error: " + e.message;
-    $("result").classList.add("hidden");
   }
 }
-
 $("file").addEventListener("change", e => handle(e.target.files[0]));
 $("drop").addEventListener("dragover", e => { e.preventDefault(); $("drop").classList.add("over"); });
 $("drop").addEventListener("dragleave", () => $("drop").classList.remove("over"));
 $("drop").addEventListener("drop", e => { e.preventDefault(); $("drop").classList.remove("over"); handle(e.dataTransfer.files[0]); });
-$("rows").addEventListener("click", e => {
-  const b = e.target.closest("button[data-i]");
-  if (b) { rows[b.dataset.i].on = !rows[b.dataset.i].on; render(); }
-});
+$("rows").addEventListener("change", e => { const c = e.target.closest("input[data-i]"); if (c) { rows[c.dataset.i].on = c.checked; render(); } });
 $("enableAll").onclick = () => { rows.forEach(r => r.on = true); render(); };
 $("ignoreAll").onclick = () => { rows.forEach(r => r.on = false); render(); };
+$("q").addEventListener("input", render);
 
-// ---------- Planner: monthly bills and KOKO plans, planned over 6 months ----------
+// ---------- planner: regular / one-time bills and KOKO plans ----------
 const store = {
   get() { try { return JSON.parse(localStorage.getItem("planner") || "[]"); } catch { return []; } },
   set(v) { try { localStorage.setItem("planner", JSON.stringify(v)); } catch {} }
 };
 let items = store.get();
+let selMonth = 0;
 const MON = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const ymd = d => `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,"0")}${String(d.getDate()).padStart(2,"0")}`;
 const fdate = d => `${d.getDate()} ${MON[d.getMonth()].slice(0,3)} ${d.getFullYear()}`;
 const day0 = d => new Date(d.getFullYear(), d.getMonth(), d.getDate());
-function addMonths(y, m, day) {            // same day each month, clamped to month length
-  return new Date(y, m, Math.min(day, new Date(y, m + 1, 0).getDate()));
-}
+function addMonths(y, m, day) { return new Date(y, m, Math.min(day, new Date(y, m + 1, 0).getDate())); }
 function parseStmtDate(s) {
   const m = s.match(/^(\d{1,2})[\/\-. ](\d{1,2}|[A-Za-z]{3})[\/\-. ](\d{2,4})$/);
   if (!m) return null;
   const mo = /^\d+$/.test(m[2]) ? +m[2] - 1 : MON.findIndex(x => x.slice(0,3).toLowerCase() === m[2].toLowerCase());
   return new Date(+m[3] < 100 ? 2000 + +m[3] : +m[3], mo, +m[1]);
 }
+const cat = it => it.type === "koko" ? "koko" : it.repeat === false ? "one" : "reg";
 function occurrences(it) {
   const out = [], now = new Date();
   if (it.type === "koko") {
     const [y, m, d] = it.start.split("-").map(Number);
     for (let k = 0; k < it.term; k++) out.push({ k, n:k + 1, date:addMonths(y, m - 1 + k, d) });
-  } else {
-    if (it.repeat === false) {                      // one-time payment in a chosen month
-      const [y, m] = it.month.split("-").map(Number);
-      out.push({ k:0, n:1, date:addMonths(y, m - 1, it.day) });
-    } else for (let k = 0; k < 12; k++) out.push({ k, n:k + 1, date:addMonths(now.getFullYear(), now.getMonth() + k, it.day) });
-  }
+  } else if (it.repeat === false) {
+    const [y, m] = it.month.split("-").map(Number);
+    out.push({ k:0, n:1, date:addMonths(y, m - 1, it.day) });
+  } else for (let k = 0; k < 12; k++) out.push({ k, n:k + 1, date:addMonths(now.getFullYear(), now.getMonth() + k, it.day) });
   return out;
 }
 function autoPaid(it, date) {
-  const win = it.type === "koko" ? 3 : 15;   // days either side of the date
+  const win = it.type === "koko" ? 3 : 15;
   return rows.some(r => {
     const d = parseStmtDate(r.date);
     if (!d || !r.debit || Math.abs(r.debit - it.amount) > 0.01) return false;
@@ -317,76 +531,110 @@ function calLink(it) {
   if (rule) p.set("recur", "RRULE:" + rule);
   return "https://calendar.google.com/calendar/render?" + p;
 }
-function itemList(type) {
-  const list = items.map((it, i) => ({ it, i })).filter(x => x.it.type === type);
-  if (!list.length) return `<p class="note">${type === "koko" ? "No KOKO payments yet." : "No regular or one-time payments yet."}</p>`;
+const COLOR = { reg:"var(--lime)", one:"var(--yellow)", koko:"var(--orange)" };
+const LABEL = { reg:"Regular", one:"One-time", koko:"KOKO" };
+
+function itemCards(type) {
+  const list = items.map((it, i) => ({ it, i })).filter(x => (type === "koko") === (x.it.type === "koko"));
+  if (!list.length) return `<div class="empty">${type === "koko" ? "No KOKO payments yet. Add one with the button above." : "No payments yet. Add your gym, wifi or a one-time bill."}</div>`;
   return list.map(({ it, i }) => {
     const st = occurrences(it).map(o => status(it, o)).filter(s => !s.skip);
     const paidN = st.filter(s => s.paid).length;
-    const info = type === "koko"
-      ? `${fmt(it.amount)} × ${it.term} months from ${fdate(new Date(it.start + "T00:00"))} · ${paidN} of ${it.term} paid · ${it.term - paidN} left`
-      : it.repeat === false
-        ? `${fmt(it.amount)} once, ${fdate(occurrences(it)[0].date)}`
-        : `${fmt(it.amount)} on day ${it.day} every month · whole year`;
-    return `<div class="item"><header><strong>${esc(it.name)}</strong><span class="meta">${info}</span></header>
-      <div class="links"><a href="${calLink(it)}" target="_blank" rel="noopener">Add to Google Calendar</a>
-      <button data-edit="${i}">Edit</button> <button data-del="${i}">Remove</button></div></div>`;
+    const actions = `<div class="actions"><a class="btn sm" href="${calLink(it)}" target="_blank" rel="noopener">Calendar</a>
+      <button class="btn sm" data-edit="${i}">Edit</button><button class="btn sm" data-del="${i}">Remove</button></div>`;
+    if (type === "koko") return `<div class="item"><div class="top"><b>${esc(it.name)}</b><span class="num">${fmt(it.amount)} × ${it.term}</span></div>
+      <div class="sub">From ${fdate(new Date(it.start + "T00:00"))} · ${paidN} of ${it.term} paid · ${it.term - paidN} left</div>
+      <div class="bar thin org"><i style="width:${Math.round(paidN / it.term * 100)}%"></i></div>${actions}</div>`;
+    const sub = it.repeat === false ? `Once, ${fdate(occurrences(it)[0].date)}` : `Day ${it.day} of every month · whole year`;
+    return `<div class="item"><div class="top"><b>${esc(it.name)}</b><span class="num">${fmt(it.amount)}</span></div>
+      <div class="sub">${sub}</div>${actions}</div>`;
   }).join("");
 }
+
 function renderItems() {
-  $("mItems").innerHTML = itemList("monthly");
-  $("kItems").innerHTML = itemList("koko");
-  // collect every planned payment and group by month
+  $("mItems").innerHTML = itemCards("reg");
+  $("kItems").innerHTML = itemCards("koko");
+
+  // gather planned payments by month
   const now = new Date(), months = [];
-  for (let k = 0; k < 12; k++) months.push({ y:now.getFullYear(), m:now.getMonth() + k, list:[] });
-  months.forEach(mo => { const d = new Date(mo.y, mo.m, 1); mo.y = d.getFullYear(); mo.m = d.getMonth(); });
+  for (let k = 0; k < 12; k++) { const d = new Date(now.getFullYear(), now.getMonth() + k, 1); months.push({ y:d.getFullYear(), m:d.getMonth(), list:[] }); }
   items.forEach((it, i) => occurrences(it).forEach(o => {
     const mo = months.find(x => x.y === o.date.getFullYear() && x.m === o.date.getMonth());
-    if (mo) mo.list.push({ it, i, o, s:status(it, o) });
+    if (mo) mo.list.push({ it, i, o, s:status(it, o), c:cat(it) });
   }));
-  let total = 0, remaining = 0;
-  $("plan").innerHTML = months.map(mo => {
+  months.forEach(mo => {
     mo.list.sort((a, b) => a.o.date - b.o.date);
-    const sub = mo.list.filter(e => !e.s.skip).reduce((t, e) => t + e.it.amount, 0);
-    const rem = mo.list.filter(e => !e.s.skip && !e.s.paid).reduce((t, e) => t + e.it.amount, 0);
-    total += sub; remaining += rem;
-    const body = mo.list.length ? mo.list.map(e => `
-      <tr class="${e.s.skip ? "skip" : ""}">
-        <td>${fdate(e.o.date)}</td>
-        <td>${esc(e.it.name)}${e.it.type === "koko" ? ` <span class="meta">KOKO ${e.o.n}/${e.it.term}</span>` : ""}</td>
-        <td class="num debit">${fmt(e.it.amount)}</td>
-        <td class="${e.s.cls}">${e.s.label}</td>
-        <td class="act"><button data-i="${e.i}" data-k="${e.s.key}" data-act="paid">${e.s.paid ? "Unmark" : "Mark paid"}</button>
-          <button data-i="${e.i}" data-k="${e.s.key}" data-act="skip">${e.s.skip ? "Include" : "Skip"}</button></td>
-      </tr>`).join("") : `<tr><td colspan="5" class="meta">Nothing planned.</td></tr>`;
-    return `<div class="month"><h3><span>${MON[mo.m]} ${mo.y}</span><span class="debit">${fmt(sub)}</span></h3>
-      <div class="tablewrap"><table><tbody>${body}</tbody></table></div></div>`;
-  }).join("");
-  $("planTotals").innerHTML = `
-    <div class="tot"><small>Planned in 12 months</small><b class="debit">${fmt(total)}</b></div>
-    <div class="tot"><small>Still to pay</small><b>${fmt(remaining)}</b></div>
-    <div class="tot"><small>Already paid</small><b class="credit">${fmt(total - remaining)}</b></div>`;
+    mo.by = { reg:0, one:0, koko:0 };
+    mo.list.filter(e => !e.s.skip).forEach(e => mo.by[e.c] += e.it.amount);
+    mo.total = mo.by.reg + mo.by.one + mo.by.koko;
+  });
+  const all = months.flatMap(m => m.list).filter(e => !e.s.skip);
+  const total = all.reduce((t, e) => t + e.it.amount, 0);
+  const paid = all.filter(e => e.s.paid).reduce((t, e) => t + e.it.amount, 0);
+  $("planTotal").textContent = fmt(total);
+
+  // chart
+  const rawMax = Math.max(1, ...months.map(m => m.total));
+  const pow = Math.pow(10, Math.floor(Math.log10(rawMax)));
+  const max = Math.ceil(rawMax / pow * 2) / 2 * pow;       // nice ceiling (steps of 0.5 × 10^n)
+  $("yaxis").innerHTML = [0, .5, 1].map(f => `<span style="bottom:${f * 100}%">${compact(max * f)}</span>`).join("");
+  $("plot").innerHTML = [0, .5, 1].map(f => `<div class="gl" style="bottom:${f * 100}%"></div>`).join("") + `<div class="cols">` + months.map((mo, k) => {
+    const seg = c => mo.by[c] ? `<div class="seg ${c}" style="height:${Math.max(4, mo.by[c] / max * 270)}px"></div>` : "";
+    const tip = k === selMonth ? `<div class="tip ${k > 7 ? "r" : ""}" style="bottom:${Math.min(Math.max(mo.total / max * 270 - 40, 0), 150)}px">
+      <b>${MON[mo.m]} ${mo.y}</b>${["reg","one","koko"].map(c => `<div style="--c:${COLOR[c]}"><span>${LABEL[c]}</span><span>${fmt(mo.by[c])}</span></div>`).join("")}</div>` : "";
+    return `<div class="col ${k === selMonth ? "sel" : ""} ${mo.total ? "" : "empty"}" data-m="${k}" tabindex="0" role="button" aria-label="${MON[mo.m]} ${mo.y}: ${fmt(mo.total)} planned">
+      ${tip}<div class="stack">${seg("reg")}${seg("one")}${seg("koko")}</div></div>`;
+  }).join("") + `</div>`;
+  $("xlabels").innerHTML = months.map((mo, k) => `<span class="${k === selMonth ? "sel" : ""}">${MON[mo.m].slice(0, 3)}</span>`).join("");
+
+  // progress + overview
+  const pct = total ? Math.round(paid / total * 100) : 0;
+  $("limitFill").style.width = pct + "%"; $("paidAmt").textContent = fmt(paid); $("planAmt").textContent = fmt(total);
+  $("donut").style.setProperty("--p", pct + "%"); $("donutPct").textContent = pct + "%";
+  const by = { reg:0, one:0, koko:0 }; all.forEach(e => by[e.c] += e.it.amount);
+  $("seg3").innerHTML = ["reg","one","koko"].filter(c => by[c]).map(c => `<i style="--c:${COLOR[c]};flex:${by[c]}"></i>`).join("") || `<i style="--c:var(--soft);flex:1"></i>`;
+  $("mix").innerHTML = ["reg","one","koko"].map(c => `<div class="mixrow" style="--c:${COLOR[c]}"><span>${LABEL[c]}</span><b class="num">${total ? Math.round(by[c] / total * 100) : 0}%</b></div>`).join("");
+
+  // next due
+  const due = all.filter(e => !e.s.paid).sort((a, b) => a.o.date - b.o.date).slice(0, 4);
+  $("nextDue").innerHTML = due.length ? due.map(e => `<div class="row"><div class="badge" style="--c:${COLOR[e.c]}">${esc(e.it.name.charAt(0).toUpperCase())}</div>
+    <div class="t"><b>${esc(e.it.name)}</b><small>${fdate(e.o.date)}</small></div>
+    <div class="r num">${fmt(e.it.amount)}<small class="${e.s.cls}">${e.s.label}</small></div></div>`).join("")
+    : `<div class="empty">${items.length ? "Everything planned is paid." : "Add a payment to see what is due next."}</div>`;
+
+  // 12-month plan
+  $("months").innerHTML = months.map(mo => `<div class="mon"><h3><span>${MON[mo.m]} ${mo.y}</span><span class="pill num">${fmt(mo.total)}</span></h3>
+    ${mo.list.length ? mo.list.map(e => `<div class="row ${e.s.skip ? "skip" : ""}">
+      <div class="badge" style="--c:${COLOR[e.c]}">${esc(e.it.name.charAt(0).toUpperCase())}</div>
+      <div class="t"><b>${esc(e.it.name)}${e.c === "koko" ? ` · ${e.o.n}/${e.it.term}` : ""}</b><small>${fdate(e.o.date)} · <span class="${e.s.cls}">${e.s.label}</span></small>
+        <div class="acts" style="justify-content:flex-start"><button class="btn sm" data-i="${e.i}" data-k="${e.s.key}" data-act="paid">${e.s.paid ? "Unmark" : "Mark paid"}</button>
+        <button class="btn sm" data-i="${e.i}" data-k="${e.s.key}" data-act="skip">${e.s.skip ? "Include" : "Skip"}</button></div></div>
+      <div class="r num"><b>${fmt(e.it.amount)}</b></div></div>`).join("") : `<div class="row muted">Nothing planned.</div>`}</div>`).join("");
 }
+
+$("plot").addEventListener("click", e => { const c = e.target.closest("[data-m]"); if (c) { selMonth = +c.dataset.m; renderItems(); } });
+$("plot").addEventListener("mouseover", e => { const c = e.target.closest("[data-m]"); if (c && +c.dataset.m !== selMonth) { selMonth = +c.dataset.m; renderItems(); } });
+$("plot").addEventListener("focusin", e => { const c = e.target.closest("[data-m]"); if (c && +c.dataset.m !== selMonth) { selMonth = +c.dataset.m; renderItems(); $("plot").querySelector(`[data-m="${selMonth}"]`).focus(); } });
+
+// ---------- forms ----------
 const todayStr = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; };
-$("kStart").value = todayStr();
 const thisMonth = () => todayStr().slice(0, 7);
 function syncRepeat() { $("lMonth").classList.toggle("hidden", $("mRepeat").checked); $("mMonth").required = !$("mRepeat").checked; }
-$("mMonth").min = thisMonth();
+$("kStart").value = todayStr(); $("mMonth").min = $("mMonth").value = thisMonth();
 $("mRepeat").onchange = syncRepeat;
-const editing = { monthly:null, koko:null };   // index of the item being edited
+const editing = { monthly:null, koko:null };
+function showForm(type, on) { $((type === "koko" ? "k" : "m") + "Form").classList.toggle("hidden", !on); }
 function resetForm(type) {
   const p = type === "koko" ? "k" : "m";
-  editing[type] = null;
-  $(p + "Form").reset();
+  editing[type] = null; $(p + "Form").reset(); showForm(type, false);
   if (type === "koko") $("kStart").value = todayStr(); else { $("mDay").value = 1; $("mRepeat").checked = true; $("mMonth").value = thisMonth(); syncRepeat(); }
-  $(p + "Save").textContent = "Add"; $(p + "Cancel").classList.add("hidden");
+  $(p + "Save").textContent = "Add";
 }
 function saveItem(type, fields) {
   const i = editing[type];
   if (i == null) items.push({ id:Date.now(), type, marks:{}, skips:{}, ...fields });
   else {
     const old = items[i];
-    // changing the date or term makes the old paid / skip marks meaningless
     const keep = type === "koko" ? old.start === fields.start && old.term === fields.term
       : old.day === fields.day && old.repeat === fields.repeat && old.month === fields.month;
     items[i] = { ...old, ...fields, marks:keep ? old.marks : {}, skips:keep ? old.skips : {} };
@@ -401,19 +649,19 @@ $("mForm").addEventListener("submit", e => {
 });
 $("kForm").addEventListener("submit", e => {
   e.preventDefault();
-  saveItem("koko", { name:$("kName").value.trim(), amount:parseFloat($("kAmt").value),
-    start:$("kStart").value, term:+$("kTerm").value, match:"" });
+  saveItem("koko", { name:$("kName").value.trim(), amount:parseFloat($("kAmt").value), start:$("kStart").value, term:+$("kTerm").value, match:"" });
 });
+$("mToggle").onclick = () => { const open = $("mForm").classList.contains("hidden"); if (open) showForm("monthly", true); else resetForm("monthly"); };
+$("kToggle").onclick = () => { const open = $("kForm").classList.contains("hidden"); if (open) showForm("koko", true); else resetForm("koko"); };
 $("mCancel").onclick = () => resetForm("monthly");
 $("kCancel").onclick = () => resetForm("koko");
 function startEdit(i) {
   const it = items[i], k = it.type === "koko", p = k ? "k" : "m";
-  editing[it.type] = i;
+  editing[it.type] = i; showForm(it.type, true);
   $(p + "Name").value = it.name; $(p + "Amt").value = it.amount;
   if (k) { $("kStart").value = it.start; $("kTerm").value = it.term; }
   else { $("mDay").value = it.day; $("mMatch").value = it.match || ""; $("mRepeat").checked = it.repeat !== false; $("mMonth").value = it.month || thisMonth(); syncRepeat(); }
-  $(p + "Save").textContent = "Save changes"; $(p + "Cancel").classList.remove("hidden");
-  $(p + "Form").scrollIntoView({ block:"center" }); $(p + "Name").focus();
+  $(p + "Save").textContent = "Save changes"; $(p + "Form").scrollIntoView({ block:"center" }); $(p + "Name").focus();
 }
 document.addEventListener("click", e => {
   const c = e.target.closest("[data-act]"), d = e.target.closest("[data-del]"), ed = e.target.closest("[data-edit]");
@@ -421,13 +669,24 @@ document.addEventListener("click", e => {
   if (c) {
     const it = items[c.dataset.i], k = c.dataset.k, o = occurrences(it).find(o => ymd(o.date) === k);
     it.marks ||= {}; it.skips ||= {};
-    if (c.dataset.act === "paid") it.marks[k] = !status(it, o).paid;
-    else it.skips[k] = !it.skips[k];
+    if (c.dataset.act === "paid") it.marks[k] = !status(it, o).paid; else it.skips[k] = !it.skips[k];
   } else if (d) { items.splice(d.dataset.del, 1); resetForm("monthly"); resetForm("koko"); }
   else return;
   store.set(items); renderItems();
 });
-renderItems();
+
+// ---------- sidebar highlight ----------
+const links = [...document.querySelectorAll("#nav a")];
+const targets = links.map(a => document.querySelector(a.getAttribute("href")));
+function markNav() {
+  let cur = 0;
+  targets.forEach((el, i) => { if (el && el.getBoundingClientRect().top <= innerHeight * .35) cur = i; });
+  if (innerHeight + scrollY >= document.documentElement.scrollHeight - 4) cur = targets.length - 1;
+  links.forEach((a, i) => a.classList.toggle("on", i === cur));
+}
+addEventListener("scroll", markNav, { passive:true }); markNav();
+
+render(); renderItems();
 </script>
 </body>
 </html>

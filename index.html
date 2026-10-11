@@ -527,6 +527,8 @@ const store = {
   get() { try { return JSON.parse(localStorage.getItem("planner") || "[]"); } catch { return []; } },
   set(v) { try { localStorage.setItem("planner", JSON.stringify(v)); } catch {} }
 };
+// One-time clean start: erase anything saved by earlier versions, then never run again.
+try { if (!localStorage.getItem("plannerWiped1")) { localStorage.removeItem("planner"); localStorage.setItem("plannerWiped1", "1"); } } catch {}
 let items = store.get();
 let selMonth = 0;
 const closedMonths = new Set();   // month cards the user collapsed (kept across re-renders)

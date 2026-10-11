@@ -173,16 +173,14 @@
   .sw:checked { background:linear-gradient(90deg,var(--lime),var(--lime-d)) !important; } .sw:checked::after { transform:translateX(16px); }
 
   /* plan */
-  .collapser { width:100%; background:none; border:0; padding:0; margin-bottom:14px; text-align:left; cursor:pointer; align-items:center; flex-wrap:nowrap; }
-  .collapser > span { min-width:0; display:block; }
-  .collapser h2 { display:block; } .collapser small { display:block; color:var(--muted); font-size:12px; font-weight:500; }
-  .chev { width:28px; height:28px; flex:none; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; background:var(--soft); border-radius:50%; padding:4px; transition:transform .2s; }
-  .a-plan.closed .chev { transform:rotate(-90deg); }
-  .a-plan.closed .months { display:none; }
-  .a-plan.closed .collapser { margin-bottom:0; }
   .months { display:flex; flex-direction:column; gap:14px; }
   .mon { background:var(--soft); border-radius:18px; padding:14px 16px; }
-  .mon h3 { display:flex; justify-content:space-between; align-items:center; font-size:16px; font-weight:700; margin-bottom:6px; }
+  .monhead { width:100%; display:flex; align-items:center; gap:10px; background:none; border:0; padding:0; margin:0; cursor:pointer; text-align:left; font-size:16px; font-weight:700; }
+  .monhead .name { flex:1; min-width:0; }
+  .chev { width:28px; height:28px; flex:none; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; background:var(--card); border-radius:50%; padding:4px; transition:transform .2s; }
+  .mon.closed .chev { transform:rotate(-90deg); }
+  .mon.closed .monbody { display:none; }
+  .monbody { margin-top:6px; }
   .pill { background:var(--card); border-radius:999px; padding:4px 14px; font-size:17px; font-weight:800; color:var(--red); }
   .mon .row { padding:8px 0; border-top:1px solid var(--line); gap:10px; }
   .mon .row.skip .t, .mon .row.skip .r b { opacity:.4; text-decoration:line-through; }
@@ -359,10 +357,7 @@
       </div>
 
       <section class="card a-plan" id="plan">
-        <button type="button" class="head collapser" id="planToggle" aria-expanded="true" aria-controls="months">
-          <span><h2>Plan for the rest of the year</h2><small>Paid is matched from your statement. Mark paid or skip to override.</small></span>
-          <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
-        </button>
+        <div class="head"><div><h2>Plan for the rest of the year</h2><small>Paid is matched from your statement. Mark paid or skip to override.</small></div></div>
         <div class="months" id="months"></div>
       </section>
 
@@ -534,6 +529,7 @@ const store = {
 };
 let items = store.get();
 let selMonth = 0;
+const closedMonths = new Set();   // month cards the user collapsed (kept across re-renders)
 const MON = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const ymd = d => `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,"0")}${String(d.getDate()).padStart(2,"0")}`;
 const fdate = d => `${d.getDate()} ${MON[d.getMonth()].slice(0,3)} ${d.getFullYear()}`;
@@ -668,16 +664,25 @@ function renderItems() {
     : `<div class="empty">${items.length ? "Everything planned is paid." : "Add a payment to see what is due next."}</div>`;
 
   // 12-month plan
-  $("months").innerHTML = months.map(mo => `<div class="mon"><h3><span>${MON[mo.m]} ${mo.y}</span><span class="pill num">${fmt(mo.total)}</span></h3>
-    ${mo.list.length ? mo.list.map(e => `<div class="row ${e.s.skip ? "skip" : ""}">
+  $("months").innerHTML = months.map(mo => { const mk = mo.y + "-" + mo.m, shut = closedMonths.has(mk); return `<div class="mon ${shut ? "closed" : ""}">
+    <button type="button" class="monhead" data-mon="${mk}" aria-expanded="${!shut}"><span class="name">${MON[mo.m]} ${mo.y}</span><span class="pill num">${fmt(mo.total)}</span>
+      <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+    <div class="monbody">${mo.list.length ? mo.list.map(e => `<div class="row ${e.s.skip ? "skip" : ""}">
       <div class="badge" style="--c:${COLOR[e.c]}">${esc(e.it.name.charAt(0).toUpperCase())}</div>
       <div class="t"><b>${esc(e.it.name)}${e.c === "koko" ? ` · ${e.o.n}/${e.it.term}` : ""}</b><small>${fdate(e.o.date)} · <span class="${e.s.cls}">${e.s.label}</span></small>
         <div class="acts" style="justify-content:flex-start"><button class="btn sm" data-i="${e.i}" data-k="${e.s.key}" data-act="paid">${e.s.paid ? "Unmark" : "Mark paid"}</button>
         <button class="btn sm" data-i="${e.i}" data-k="${e.s.key}" data-act="skip">${e.s.skip ? "Include" : "Skip"}</button></div></div>
-      <div class="r num"><b>${fmt(e.it.amount)}</b></div></div>`).join("") : `<div class="row muted">Nothing planned.</div>`}</div>`).join("");
+      <div class="r num"><b>${fmt(e.it.amount)}</b></div></div>`).join("") : `<div class="row muted">Nothing planned.</div>`}</div></div>`; }).join("");
 }
 
 $("mDebits").addEventListener("click", e => { const c = e.target.closest("[data-m]"); if (c) { selMonth = +c.dataset.m; renderItems(); } });
+$("months").addEventListener("click", e => {
+  const h = e.target.closest("[data-mon]");
+  if (!h) return;
+  const mk = h.dataset.mon;
+  if (closedMonths.has(mk)) closedMonths.delete(mk); else closedMonths.add(mk);
+  renderItems();
+});
 $("plot").addEventListener("click", e => { const c = e.target.closest("[data-m]"); if (c) { selMonth = +c.dataset.m; renderItems(); } });
 $("plot").addEventListener("mouseover", e => { const c = e.target.closest("[data-m]"); if (c && +c.dataset.m !== selMonth) { selMonth = +c.dataset.m; renderItems(); } });
 $("plot").addEventListener("focusin", e => { const c = e.target.closest("[data-m]"); if (c && +c.dataset.m !== selMonth) { selMonth = +c.dataset.m; renderItems(); $("plot").querySelector(`[data-m="${selMonth}"]`).focus(); } });
@@ -740,12 +745,6 @@ document.addEventListener("click", e => {
   } else if (d) { items.splice(d.dataset.del, 1); resetForm("monthly"); resetForm("koko"); }
   else return;
   store.set(items); renderItems();
-});
-
-// ---------- collapsible plan card ----------
-$("planToggle").addEventListener("click", () => {
-  const closed = $("plan").classList.toggle("closed");
-  $("planToggle").setAttribute("aria-expanded", String(!closed));
 });
 
 // ---------- reset ----------

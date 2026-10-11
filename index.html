@@ -173,6 +173,13 @@
   .sw:checked { background:linear-gradient(90deg,var(--lime),var(--lime-d)) !important; } .sw:checked::after { transform:translateX(16px); }
 
   /* plan */
+  .collapser { width:100%; background:none; border:0; padding:0; margin-bottom:14px; text-align:left; cursor:pointer; align-items:center; flex-wrap:nowrap; }
+  .collapser > span { min-width:0; display:block; }
+  .collapser h2 { display:block; } .collapser small { display:block; color:var(--muted); font-size:12px; font-weight:500; }
+  .chev { width:28px; height:28px; flex:none; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; background:var(--soft); border-radius:50%; padding:4px; transition:transform .2s; }
+  .a-plan.closed .chev { transform:rotate(-90deg); }
+  .a-plan.closed .months { display:none; }
+  .a-plan.closed .collapser { margin-bottom:0; }
   .months { display:flex; flex-direction:column; gap:14px; }
   .mon { background:var(--soft); border-radius:18px; padding:14px 16px; }
   .mon h3 { display:flex; justify-content:space-between; align-items:center; font-size:16px; font-weight:700; margin-bottom:6px; }
@@ -352,7 +359,10 @@
       </div>
 
       <section class="card a-plan" id="plan">
-        <div class="head"><div><h2>Plan for the rest of the year</h2><small>Paid is matched from your statement. Mark paid or skip to override.</small></div></div>
+        <button type="button" class="head collapser" id="planToggle" aria-expanded="true" aria-controls="months">
+          <span><h2>Plan for the rest of the year</h2><small>Paid is matched from your statement. Mark paid or skip to override.</small></span>
+          <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
         <div class="months" id="months"></div>
       </section>
 
@@ -372,7 +382,7 @@
       </section>
 
       <section class="card upload a-upload" id="uploadCard">
-          <div class="head"><div><h2>Upload statement</h2><small>PDF, text-based</small></div></div>
+          <div class="head"><div><h2>Upload statement</h2><small>PDF, text-based</small></div><button type="button" class="btn sm" id="resetAll">Reset all data</button></div>
           <label class="drop" id="drop" for="file">
             <svg viewBox="0 0 24 24"><path d="M7 3h8l4 4v14H7z"/><path d="M15 3v4h4M12 17v-6M9 14l3-3 3 3"/></svg>
             <span><span class="dsk">Drop your statement PDF or click</span><span class="mob">Tap to choose your statement PDF</span></span><small>Processed in your browser</small>
@@ -730,6 +740,28 @@ document.addEventListener("click", e => {
   } else if (d) { items.splice(d.dataset.del, 1); resetForm("monthly"); resetForm("koko"); }
   else return;
   store.set(items); renderItems();
+});
+
+// ---------- collapsible plan card ----------
+$("planToggle").addEventListener("click", () => {
+  const closed = $("plan").classList.toggle("closed");
+  $("planToggle").setAttribute("aria-expanded", String(!closed));
+});
+
+// ---------- reset ----------
+let resetArmed = 0;
+$("resetAll").addEventListener("click", () => {
+  if (!resetArmed) {                                     // first click arms, second click confirms
+    $("resetAll").textContent = "Tap again to erase everything";
+    resetArmed = setTimeout(() => { resetArmed = 0; $("resetAll").textContent = "Reset all data"; }, 4000);
+    return;
+  }
+  clearTimeout(resetArmed); resetArmed = 0;
+  try { localStorage.removeItem("planner"); } catch {}
+  items = []; rows = []; selMonth = 0; $("file").value = ""; $("q").value = ""; $("msg").textContent = "";
+  resetForm("monthly"); resetForm("koko");
+  $("resetAll").textContent = "Reset all data";
+  render(); renderItems();
 });
 
 // ---------- sidebar highlight ----------

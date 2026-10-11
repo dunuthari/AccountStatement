@@ -117,6 +117,7 @@
   .mchips { display:flex; flex-wrap:wrap; gap:8px; margin:2px 0 10px; }
   .mchip { font:inherit; cursor:pointer; text-align:left; background:var(--soft); border-radius:12px; padding:6px 12px; font-size:12px; color:var(--muted); border:1px solid transparent; }
   .mchip b { display:block; font-size:15px; color:var(--red); font-weight:700; }
+  .mchip em { display:block; font-style:normal; font-size:11px; margin-top:1px; }
   .mchip.cur { border-color:var(--ink); color:var(--ink); }
   .delta { font-size:12px; color:var(--muted); }
   .delta.up { color:var(--green); } .delta.down { color:var(--red); }
@@ -296,7 +297,7 @@
                 <span style="--c:var(--lime)">Regular</span><span style="--c:var(--yellow)">One-time</span><span style="--c:var(--orange)">KOKO</span>
               </div>
             </div>
-            <div class="muted" style="font-size:12px;margin-top:4px">Planned debits by month, rest of <span id="yr"></span></div>
+            <div class="muted" style="font-size:12px;margin-top:4px">Debits by month, rest of <span id="yr"></span> (statement + planned)</div>
             <div class="mchips" id="mDebits"></div>
             <div class="chart">
               <div class="yaxis" id="yaxis"></div>
@@ -516,9 +517,9 @@ $("file").addEventListener("change", e => handle(e.target.files[0]));
 $("drop").addEventListener("dragover", e => { e.preventDefault(); $("drop").classList.add("over"); });
 $("drop").addEventListener("dragleave", () => $("drop").classList.remove("over"));
 $("drop").addEventListener("drop", e => { e.preventDefault(); $("drop").classList.remove("over"); handle(e.dataTransfer.files[0]); });
-$("rows").addEventListener("change", e => { const c = e.target.closest("input[data-i]"); if (c) { rows[c.dataset.i].on = c.checked; render(); } });
-$("enableAll").onclick = () => { rows.forEach(r => r.on = true); render(); };
-$("ignoreAll").onclick = () => { rows.forEach(r => r.on = false); render(); };
+$("rows").addEventListener("change", e => { const c = e.target.closest("input[data-i]"); if (c) { rows[c.dataset.i].on = c.checked; render(); renderItems(); } });
+$("enableAll").onclick = () => { rows.forEach(r => r.on = true); render(); renderItems(); };
+$("ignoreAll").onclick = () => { rows.forEach(r => r.on = false); render(); renderItems(); };
 $("q").addEventListener("input", render);
 
 // ---------- planner: regular / one-time bills and KOKO plans ----------
@@ -559,9 +560,18 @@ function autoPaid(it, date) {
   const win = it.type === "koko" ? 3 : 15;
   return rows.some(r => {
     const d = parseStmtDate(r.date);
-    if (!d || !r.debit || Math.abs(r.debit - it.amount) > 0.01) return false;
+    if (!r.on || !d || !r.debit || Math.abs(r.debit - it.amount) > 0.01) return false;
     if (it.match && !(r.particulars + " " + r.ref).toLowerCase().includes(it.match.toLowerCase())) return false;
     return Math.abs(day0(d) - day0(date)) <= win * 864e5;
+  });
+}
+// is this planned payment already inside the statement figures for its own calendar month?
+function inStmtMonth(it, date) {
+  return rows.some(r => {
+    const d = parseStmtDate(r.date);
+    if (!r.on || !d || !r.debit || Math.abs(r.debit - it.amount) > 0.01) return false;
+    if (it.match && !(r.particulars + " " + r.ref).toLowerCase().includes(it.match.toLowerCase())) return false;
+    return d.getFullYear() === date.getFullYear() && d.getMonth() === date.getMonth();
   });
 }
 function status(it, o) {
@@ -640,7 +650,12 @@ function renderItems() {
   $("xlabels").style.gridTemplateColumns = `repeat(${MONTHS_LEFT},minmax(0,1fr))`;
   $("xlabels").innerHTML = months.map((mo, k) => `<span class="${k === selMonth ? "sel" : ""}">${MON[mo.m].slice(0, 3)}</span>`).join("");
 
-  $("mDebits").innerHTML = months.map((mo, k) => `<button type="button" class="mchip ${k === selMonth ? "cur" : ""}" data-m="${k}">${MON[mo.m].slice(0, 3)} ${mo.y}<b class="num">${fmt(mo.total)}</b></button>`).join("");
+  // monthly debits = what the statement already shows + planned payments the statement does not contain yet
+  months.forEach(mo => {
+    mo.stmt = rows.filter(r => r.on && r.debit).reduce((s, r) => { const d = parseStmtDate(r.date); return d && d.getFullYear() === mo.y && d.getMonth() === mo.m ? s + r.debit : s; }, 0);
+    mo.extra = mo.list.filter(e => !e.s.skip && !inStmtMonth(e.it, e.o.date)).reduce((s, e) => s + e.it.amount, 0);
+  });
+  $("mDebits").innerHTML = months.map((mo, k) => `<button type="button" class="mchip ${k === selMonth ? "cur" : ""}" data-m="${k}">${MON[mo.m].slice(0, 3)} ${mo.y}<b class="num">${fmt(mo.stmt + mo.extra)}</b>${mo.stmt ? `<em>${fmt(mo.stmt)} from statement</em>` : ""}</button>`).join("");
 
   // progress + overview
   // progress covers the current month only

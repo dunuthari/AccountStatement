@@ -655,7 +655,7 @@ function renderItems() {
     mo.stmt = rows.filter(r => r.on && r.debit).reduce((s, r) => { const d = parseStmtDate(r.date); return d && d.getFullYear() === mo.y && d.getMonth() === mo.m ? s + r.debit : s; }, 0);
     mo.extra = mo.list.filter(e => !e.s.skip && !inStmtMonth(e.it, e.o.date)).reduce((s, e) => s + e.it.amount, 0);
   });
-  $("mDebits").innerHTML = months.map((mo, k) => `<button type="button" class="mchip ${k === selMonth ? "cur" : ""}" data-m="${k}">${MON[mo.m].slice(0, 3)} ${mo.y}<b class="num">${fmt(mo.stmt + mo.extra)}</b>${mo.stmt ? `<em>${fmt(mo.stmt)} from statement</em>` : ""}</button>`).join("");
+  $("mDebits").innerHTML = months.map((mo, k) => `<button type="button" class="mchip ${k === selMonth ? "cur" : ""}" data-m="${k}">${MON[mo.m].slice(0, 3)} ${mo.y}<b class="num">${fmt(mo.stmt + mo.extra)}</b>${mo.stmt ? `<em>${fmt(mo.stmt)} statement + ${fmt(mo.extra)} planned</em>` : ""}</button>`).join("");
 
   // progress + overview
   // progress covers the current month only

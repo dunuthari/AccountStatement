@@ -530,6 +530,7 @@ const store = {
 let items = store.get();
 let selMonth = 0;
 const closedMonths = new Set();   // month cards the user collapsed (kept across re-renders)
+let monthsSeeded = false;          // first render starts with every month card collapsed
 const MON = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const ymd = d => `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,"0")}${String(d.getDate()).padStart(2,"0")}`;
 const fdate = d => `${d.getDate()} ${MON[d.getMonth()].slice(0,3)} ${d.getFullYear()}`;
@@ -621,6 +622,7 @@ function renderItems() {
     mo.list.filter(e => !e.s.skip).forEach(e => mo.by[e.c] += e.it.amount);
     mo.total = mo.by.reg + mo.by.one + mo.by.koko;
   });
+  if (!monthsSeeded) { months.forEach(mo => closedMonths.add(mo.y + "-" + mo.m)); monthsSeeded = true; }
   const all = months.flatMap(m => m.list).filter(e => !e.s.skip);
   const total = all.reduce((t, e) => t + e.it.amount, 0);
   const paid = all.filter(e => e.s.paid).reduce((t, e) => t + e.it.amount, 0);

@@ -117,7 +117,6 @@
   .mchips { display:flex; flex-wrap:wrap; gap:8px; margin:2px 0 10px; }
   .mchip { font:inherit; cursor:pointer; text-align:left; background:var(--soft); border-radius:12px; padding:6px 12px; font-size:12px; color:var(--muted); border:1px solid transparent; }
   .mchip b { display:block; font-size:15px; color:var(--red); font-weight:700; }
-  .mchip em { display:block; font-style:normal; font-size:11px; margin-top:1px; }
   .mchip.cur { border-color:var(--ink); color:var(--ink); }
   .delta { font-size:12px; color:var(--muted); }
   .delta.up { color:var(--green); } .delta.down { color:var(--red); }
@@ -297,7 +296,7 @@
                 <span style="--c:var(--lime)">Regular</span><span style="--c:var(--yellow)">One-time</span><span style="--c:var(--orange)">KOKO</span>
               </div>
             </div>
-            <div class="muted" style="font-size:12px;margin-top:4px">Debits by month, rest of <span id="yr"></span> (statement + planned)</div>
+            <div class="muted" style="font-size:12px;margin-top:4px">Planned debits by month, rest of <span id="yr"></span></div>
             <div class="mchips" id="mDebits"></div>
             <div class="chart">
               <div class="yaxis" id="yaxis"></div>
@@ -488,10 +487,6 @@ function render() {
       <td class="act"><input class="sw" type="checkbox" data-i="${i}" ${r.on ? "checked" : ""} aria-label="Include this transaction in totals"></td>
     </tr>`).join("") : `<tr><td colspan="6" class="muted" style="padding:28px;text-align:center">${rows.length ? "No transactions match your search." : "No statement loaded yet."}</td></tr>`;
   const on = rows.filter(r => r.on);
-  const now = new Date();
-  const monthDebit = on.reduce((s, r) => { const d = parseStmtDate(r.date); return d && d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() ? s + r.debit : s; }, 0);
-  $("planTotal").textContent = fmt(monthDebit);
-  $("planSub").textContent = `Debits in ${MON[now.getMonth()]} ${now.getFullYear()}` + (rows.length ? "" : " · upload a statement");
   $("stmtTotals").classList.toggle("hidden", !rows.length);
   $("sumD").textContent = fmt(on.reduce((s, r) => s + r.debit, 0));
   $("sumC").textContent = fmt(on.reduce((s, r) => s + r.credit, 0));
@@ -563,15 +558,6 @@ function autoPaid(it, date) {
     if (!r.on || !d || !r.debit || Math.abs(r.debit - it.amount) > 0.01) return false;
     if (it.match && !(r.particulars + " " + r.ref).toLowerCase().includes(it.match.toLowerCase())) return false;
     return Math.abs(day0(d) - day0(date)) <= win * 864e5;
-  });
-}
-// is this planned payment already inside the statement figures for its own calendar month?
-function inStmtMonth(it, date) {
-  return rows.some(r => {
-    const d = parseStmtDate(r.date);
-    if (!r.on || !d || !r.debit || Math.abs(r.debit - it.amount) > 0.01) return false;
-    if (it.match && !(r.particulars + " " + r.ref).toLowerCase().includes(it.match.toLowerCase())) return false;
-    return d.getFullYear() === date.getFullYear() && d.getMonth() === date.getMonth();
   });
 }
 function status(it, o) {
@@ -650,14 +636,13 @@ function renderItems() {
   $("xlabels").style.gridTemplateColumns = `repeat(${MONTHS_LEFT},minmax(0,1fr))`;
   $("xlabels").innerHTML = months.map((mo, k) => `<span class="${k === selMonth ? "sel" : ""}">${MON[mo.m].slice(0, 3)}</span>`).join("");
 
-  // monthly debits = what the statement already shows + planned payments the statement does not contain yet
-  months.forEach(mo => {
-    mo.stmt = rows.filter(r => r.on && r.debit).reduce((s, r) => { const d = parseStmtDate(r.date); return d && d.getFullYear() === mo.y && d.getMonth() === mo.m ? s + r.debit : s; }, 0);
-    mo.extra = mo.list.filter(e => !e.s.skip && !inStmtMonth(e.it, e.o.date)).reduce((s, e) => s + e.it.amount, 0);
-  });
-  $("mDebits").innerHTML = months.map((mo, k) => `<button type="button" class="mchip ${k === selMonth ? "cur" : ""}" data-m="${k}">${MON[mo.m].slice(0, 3)} ${mo.y}<b class="num">${fmt(mo.stmt + mo.extra)}</b>${mo.stmt ? `<em>${fmt(mo.stmt)} statement + ${fmt(mo.extra)} planned</em>` : ""}</button>`).join("");
+  // chips: planned debits per month
+  $("mDebits").innerHTML = months.map((mo, k) => `<button type="button" class="mchip ${k === selMonth ? "cur" : ""}" data-m="${k}">${MON[mo.m].slice(0, 3)} ${mo.y}<b class="num">${fmt(mo.total)}</b></button>`).join("");
+  // big number: this month's planned total + every counted debit in the uploaded statement
+  const stmtTotal = rows.filter(r => r.on).reduce((s, r) => s + r.debit, 0);
+  $("planTotal").textContent = fmt(months[0].total + stmtTotal);
+  $("planSub").textContent = `${MON[months[0].m]} ${months[0].y}: ${fmt(months[0].total)} planned + ${fmt(stmtTotal)} statement debits` + (rows.length ? "" : " (upload a statement)");
 
-  // progress + overview
   // progress covers the current month only
   const cur = months[0].list.filter(e => !e.s.skip);
   const curTotal = cur.reduce((s, e) => s + e.it.amount, 0);
